@@ -1,11 +1,11 @@
 {
   "name": "bidbattle",
-  "version": "0.4.0",
+  "version": "1.6.0",
   "private": true,
-  "description": "BidBattle – Auktionswebsite mit 109 Fußballern, 44 abwechslungsreichen Auktionen, 4-3-3 und eigenen Ratings",
+  "description": "BidBattle – Multiplayer-Auktionswebsite mit Football Startelf, Bid Your Player und weiteren Spielmodi",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/smoke.cjs"
+    "test": "node tests/smoke.cjs && node tests/variants.cjs && node tests/features16.cjs"
   },
   "engines": {
     "node": ">=18"

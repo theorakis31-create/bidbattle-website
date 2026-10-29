@@ -61,12 +61,12 @@ Nico Schlotterbeck|85|🇩🇪|
 Aymeric Laporte|82|🇪🇸|
 Nathan Aké|82|🇳🇱|
 Éder Militão|85|🇧🇷|
-Harry Maguire|80|🏴|
+Harry Maguire|80|🇬🇧|
 Milan Škriniar|81|🇸🇰|
 `);
 register('DEF','RB',`
 Achraf Hakimi|89|🇲🇦|
-Trent Alexander-Arnold|86|🏴|
+Trent Alexander-Arnold|86|🇬🇧|
 Dani Carvajal|83|🇪🇸|
 Jeremie Frimpong|85|🇳🇱|
 Jules Koundé|86|🇫🇷|
@@ -78,13 +78,13 @@ Theo Hernández|87|🇫🇷|
 Alphonso Davies|85|🇨🇦|
 Nuno Mendes|87|🇵🇹|
 Alejandro Balde|83|🇪🇸|
-Andrew Robertson|82|🏴|
+Andrew Robertson|82|🇬🇧|
 Federico Dimarco|85|🇮🇹|
 Piero Hincapié|83|🇪🇨|
-Luke Shaw|80|🏴|
+Luke Shaw|80|🇬🇧|
 `);
 register('MID','CM',`
-Jude Bellingham|90|🏴|
+Jude Bellingham|90|🇬🇧|
 Kevin De Bruyne|88|🇧🇪|
 Pedri|89|🇪🇸|
 Federico Valverde|89|🇺🇾|
@@ -100,13 +100,13 @@ Eduardo Camavinga|85|🇫🇷|
 João Neves|85|🇵🇹|João Neves (footballer, born 2004)
 Frenkie de Jong|86|🇳🇱|
 Fermín López|82|🇪🇸|
-Scott McTominay|83|🏴|
-Conor Gallagher|81|🏴|
+Scott McTominay|83|🇬🇧|
+Conor Gallagher|81|🇬🇧|
 Leon Goretzka|81|🇩🇪|
 `);
 register('MID','DM',`
 Rodri|90|🇪🇸|Rodri (footballer, born 1996)
-Declan Rice|88|🏴|
+Declan Rice|88|🇬🇧|
 Joshua Kimmich|86|🇩🇪|
 Aurélien Tchouaméni|85|🇫🇷|
 Martín Zubimendi|85|🇪🇸|
@@ -115,13 +115,13 @@ Granit Xhaka|83|🇨🇭|
 register('MID','AM',`
 Florian Wirtz|89|🇩🇪|
 Jamal Musiala|89|🇩🇪|
-Cole Palmer|88|🏴|
+Cole Palmer|88|🇬🇧|
 `);
 register('ATT','RW',`
 Lionel Messi|87|🇦🇷|
 Mohamed Salah|90|🇪🇬|
 Lamine Yamal|89|🇪🇸|
-Bukayo Saka|88|🏴|
+Bukayo Saka|88|🇬🇧|
 Raphinha|88|🇧🇷|
 Rodrygo|85|🇧🇷|
 Ousmane Dembélé|89|🇫🇷|
@@ -138,13 +138,13 @@ Luis Díaz|85|🇨🇴|
 Heung-min Son|85|🇰🇷|Son Heung-min
 Ademola Lookman|84|🇳🇬|
 Gabriel Martinelli|83|🇧🇷|
-Marcus Rashford|82|🏴|
-Jack Grealish|81|🏴|
+Marcus Rashford|82|🇬🇧|
+Jack Grealish|81|🇬🇧|
 `);
 register('ATT','ST',`
 Kylian Mbappé|92|🇫🇷|
 Erling Haaland|91|🇳🇴|
-Harry Kane|90|🏴|
+Harry Kane|90|🇬🇧|
 Cristiano Ronaldo|85|🇵🇹|
 Robert Lewandowski|87|🇵🇱|
 Lautaro Martínez|88|🇦🇷|
