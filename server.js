@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 const {SLOTS,catalog,byId,createDeck,arrange,canAcquire,ratingStats} = require('./football');
 
 const PORT = Number(process.env.PORT || 3000);
-const PUBLIC = path.join(__dirname, 'public');
+const PUBLIC = __dirname;
 const rooms = new Map();
 const ROOM_TTL = 24 * 60 * 60 * 1000;
 const AUTO_NEXT_MS = process.env.BIDBATTLE_TEST_FAST === '1' ? 35 : 1700;
