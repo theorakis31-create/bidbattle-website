@@ -1,11 +1,11 @@
 {
   "name": "bidbattle",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
   "description": "BidBattle – Multiplayer-Auktionswebsite mit Football Startelf, Bid Your Player und weiteren Spielmodi",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/smoke.cjs && node tests/variants.cjs && node tests/features16.cjs"
+    "test": "node tests/smoke.cjs && node tests/variants.cjs && node tests/features16.cjs && node tests/features161.cjs && node tests/features17.cjs"
   },
   "engines": {
     "node": ">=18"

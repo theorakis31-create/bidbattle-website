@@ -15,6 +15,13 @@
   let lastWinnerCelebrated = null;
   let editorOpen = false;
   let countdownTicker=null;
+  let account=null;
+  let authToken=localStorage.getItem('bidbattle-auth-token')||'';
+  let identityMode=localStorage.getItem('bidbattle-identity')||'';
+  let loginMode='register';
+  let lastCountdownSecond=null;
+  let soundEnabled=localStorage.getItem('bidbattle-sound')!=='off';
+  let audioCtx=null;
   const AVATARS = ['🙂','😎','🤩','🐼','🦊','🐯','🐱','🐸','🦄','🤖','👽','🐧'];
   const COLORS = ['lilac','blue','peach','mint','pink','yellow'];
   const photoCache = new Map();
@@ -24,7 +31,7 @@
   let chosenColor = savedColor();
 
   const escape = value => String(value??'').replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  const savedName = () => localStorage.getItem('bidbattle-name') || '';
+  const savedName = () => account?.name||localStorage.getItem('bidbattle-name') || '';
   function notify(message) {const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3500);}
   function openDialog(id){renderPickers();const dialog=$(`#${id}`);if(!dialog.open)dialog.showModal();}
   function closeDialogs(){$$('dialog').forEach(d=>{if(d.open)d.close();});}
@@ -55,12 +62,12 @@
     cta.innerHTML=isGame?'⌂ Startseite':session && current?'↩ Zurück zum Duell':'Jetzt spielen ↗';
     cta.dataset.headerAction=isGame?'home':session && current?'game':'create';
   }
-  function createModal(mode, variant){$('#createName').value=savedName();if(mode && names[mode])$('#createMode').value=mode;if(variant)$('#createFootballVariant').value=variant;updateBudgetOptions();openDialog('createDialog');}
+  function createModal(mode, variant){if(!identityMode&&!session){openDialog('entryDialog');return;}$('#createName').value=savedName();if(mode && names[mode])$('#createMode').value=mode;if(variant)$('#createFootballVariant').value=variant;updateBudgetOptions();openDialog('createDialog');}
   function chooseFootballVariant(){openDialog('footballChoiceDialog');}
-  function joinModal(code){$('#joinName').value=savedName();$('#joinCode').value=code||'';openDialog('joinDialog');}
+  function joinModal(code){if(!identityMode&&!session){openDialog('entryDialog');return;}$('#joinName').value=savedName();$('#joinCode').value=code||'';openDialog('joinDialog');}
   async function request(url, method='GET', payload){
     let res;
-    try{res=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});}
+    try{res=await fetch(url,{method,headers:{'Content-Type':'application/json',...(authToken?{'Authorization':`Bearer ${authToken}`}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});}
     catch {throw Error('Keine Verbindung zum Spielserver. Läuft die Website über „node server.js“?');}
     let body;try{body=await res.json();}catch{throw Error('Der Server hat unerwartet geantwortet.');}
     if(!res.ok)throw Error(body.error||'Da ist etwas schiefgegangen.');
@@ -74,7 +81,8 @@
     stopEvents();if(!session)return;
     events=new EventSource(`/api/rooms/${session.code}/events?token=${encodeURIComponent(session.token)}`);
     events.onmessage=e=>{try{current=JSON.parse(e.data);render();}catch(err){console.warn(err);}};
-    events.onerror=()=>{ /* EventSource retries automatically */ };
+    events.onerror=()=>{const banner=$('#connectionBanner');banner.classList.remove('hidden');};
+    events.onopen=()=>{const banner=$('#connectionBanner');banner.classList.add('hidden');};
   }
   async function refresh(){if(!session)return;current=await request(`/api/rooms/${session.code}?token=${encodeURIComponent(session.token)}`);render();}
   async function enter(info){saveSession(info);current=info.state;closeDialogs();showGame();render();connect();}
@@ -95,17 +103,17 @@
      const playersById=Object.fromEntries(items.map(p=>[p.id,p]));
      const content=LINES.map(slots=>`<div class="pitch-line">${slots.map(slot=>{
        const player=playersById[lineup[slot]];
-       return `<div class="pitch-person">${portrait(player,compact?'mini':'pitch')}<span>${player?escape(player.title.split(' ').slice(-1)[0]):SHORT[slot]}</span><small>${player?`${player.rating} · ${SHORT[slot]}`:'frei'}</small></div>`;
+       return `<div class="pitch-person">${portrait(player,compact?'mini':'pitch')}<span>${player?escape(player.title):SHORT[slot]}</span><small>${player?`${player.rating} · ${SHORT[slot]}`:'frei'}</small></div>`;
      }).join('')}</div>`).join('');
      return `<div class="soccer-pitch ${compact?'pitch-small':''}" aria-label="4-3-3, ${items.length} von 11 Positionen besetzt"><span class="pitch-center-line"></span><span class="pitch-circle"></span>${content}</div>`;
    }
-   function inventory(items,lineup={}){
+   function inventory(items,lineup={},ownerId=''){
      if(current.mode==='football') {
        const average=items.length?`${(items.reduce((t,p)=>t+p.rating,0)/items.length).toFixed(1)} Ø`: 'Noch kein Rating';
-       if(isShort())return `<div class="football-roster-title">🃏 ${items.length}/${limit()} Spieler · ${average}</div><div class="byp-roster">${items.length?items.map(x=>`<div class="byp-roster-item">${portrait(x,'tiny')}<span>${escape(x.title.split(' ').at(-1))}</span><b>${x.rating}</b></div>`).join(''):'<span class="byp-empty">Noch keine Spieler</span>'}</div>`;
+       if(isShort())return `<div class="football-roster-title">🃏 ${items.length}/${limit()} Spieler · ${average}</div><div class="byp-roster">${items.length?items.map(x=>`<div class="byp-roster-item">${portrait(x,'tiny')}<span>${escape(x.title)}</span><b>${x.rating}</b></div>`).join(''):'<span class="byp-empty">Noch keine Spieler</span>'}</div>`;
        return `<div class="football-roster-title">⚽ ${items.length}/11 Spieler · ${average}</div>${pitch(items,true,lineup)}`;
      }
-     let entries=items.slice(-12).map(x=>`<span class="inventory-item" title="${escape(x.title)}" aria-label="${escape(x.title)}">${escape(x.emoji)}</span>`).join('');
+     let entries=items.slice(-12).map((x,i)=>`<button type="button" class="inventory-item" data-item-index="${i+Math.max(0,items.length-12)}" data-owner-id="${escape(ownerId)}" title="${escape(x.title)}" aria-label="${escape(x.title)} ansehen">${escape(x.emoji)}</button>`).join('');
      const spaces=Math.max(0,4-Math.min(4,items.length));entries+=Array.from({length:spaces},()=>'<span class="inventory-item inventory-empty" aria-hidden="true">＋</span>').join('');
      return `<div class="inventory-grid">${entries}</div>`;
    }
@@ -124,7 +132,7 @@
        if(current.auctionType==='open')status=current.open?.turnId===player.id?'👀 Ist am Zug':'Wartet auf den nächsten Zug';
        else status=player.hasBid?'✅ Gebot abgegeben':'⏳ Überlegt noch …';
      }
-     return `<section class="player-panel ${index===1?'second':''}"><div class="player-avatar avatar-${escape(player.avatarColor)}" aria-hidden="true">${escape(player.avatar)}</div><div class="player-name">${escape(player.name)} ${player.id===current.ownId?'<span class="you-tag">DU</span>':''}</div><div class="player-budget"><b>${player.budget} €</b><small>Restbudget</small></div><div class="inventory-title">${current.mode==='football'?(isShort()?'Meine Spieler':'Aufstellung'):'Gesammelte Items'} (${player.items.length}${current.mode==='football'?`/${limit()}`:''})</div>${inventory(player.items,player.lineup)}<div class="waiting-status">${status}</div></section>`;
+     return `<section class="player-panel ${index===1?'second':''}"><div class="player-avatar avatar-${escape(player.avatarColor)}" aria-hidden="true">${escape(player.avatar)}</div><div class="player-name">${escape(player.name)} ${player.id===current.ownId?'<span class="you-tag">DU</span>':''}</div><div class="player-budget"><b>${player.budget} €</b><small>Restbudget</small></div><div class="inventory-title">${current.mode==='football'?(isShort()?'Meine Spieler':'Aufstellung'):'Gesammelte Items'} (${player.items.length}${current.mode==='football'?`/${limit()}`:''})</div>${inventory(player.items,player.lineup,player.id)}<div class="waiting-status">${status}</div></section>`;
    }
    function dropdownOptions(options,selected){return options.map(([v,t])=>`<option value="${v}" ${String(v)===String(selected)?'selected':''}>${t}</option>`).join('');}
    const budgetList=(mode,variant)=>mode==='football'?(variant==='byp'?[[20,'20 € · Klassiker'],[30,'30 €'],[40,'40 €'],[50,'50 € · Extrem']]:[[50,'50 €'],[75,'75 €'],[100,'100 €']]):[[10,'10 €'],[20,'20 €'],[30,'30 €'],[50,'50 €']];
@@ -132,10 +140,10 @@
    function lobbyEditor(){return `<form id="lobbySettings" class="lobby-config"><h3>⚙️ Einstellungen für das nächste Spiel</h3><p class="muted">Nur der Host kann Änderungen speichern. Beide sehen sie sofort.</p><div class="lobby-settings-grid"><label>Spielmodus<select name="lobbyMode" id="lobbyMode">${dropdownOptions([['football','⚽ Football Draft'],['food','🍔 Food Battle'],['hero','🦸 Superhero'],['random','🎲 Random Battle']],current.mode)}</select></label><label id="lobbyVariantWrap" class="${current.mode==='football'?'':'hidden'}">Fußball-Variante<select name="lobbyVariant" id="lobbyVariant">${dropdownOptions([['startelf','🏟️ Startelf'],['byp','🃏 Bid Your Player']],current.footballVariant)}</select></label><label id="lobbyLimitWrap" class="${isShort()?'':'hidden'}">Spieler pro Person<select name="lobbyLimit" id="lobbyLimit">${dropdownOptions([[3,'3 Spieler'],[4,'4 Spieler'],[5,'5 Spieler']],current.playerLimit)}</select></label><label>Budget<select id="lobbyBudget" name="lobbyBudget">${dropdownOptions(budgetList(current.mode,current.footballVariant),current.budget)}</select></label><label>Auktionsart<select id="lobbyAuction" name="lobbyAuction">${dropdownOptions([['sealed','🙈 Blind bieten'],['open','👀 Offen überbieten']],current.auctionType)}</select></label><label>Zeit pro Gebot<select id="lobbyTime" name="lobbyTime">${dropdownOptions(timeList,current.timeLimit)}</select></label></div><button type="submit" class="btn btn-white btn-full">💾 Einstellungen speichern</button></form>`;}
    function waitingScreen(){
      const full=players().length===2;
-     const seats=`<div class="lobby-players">${players().map(p=>`<div class="lobby-seat"><span class="lobby-face avatar-${escape(p.avatarColor)}">${escape(p.avatar)}</span><b>${escape(p.name)}</b><small>${p.id===current.hostId?'👑 Host':'Mitspieler'} ${p.id===current.ownId?'· Du':''}</small></div>`).join('')}${!full?'<div class="lobby-seat empty"><span class="lobby-face">👋</span><b>Platz frei</b><small>Warte auf Spieler 2</small></div>':''}</div>`;
+     const seats=`<div class="lobby-players">${players().map(p=>`<div class="lobby-seat"><span class="lobby-face avatar-${escape(p.avatarColor)}">${escape(p.avatar)}</span><b>${escape(p.name)}</b><small>${p.id===current.hostId?'👑 Host':'Mitspieler'} ${p.id===current.ownId?'· Du':''} · ${p.online?'🟢 Online':'⚪ Verbindung offen'}</small></div>`).join('')}${!full?'<div class="lobby-seat empty"><span class="lobby-face">👋</span><b>Platz frei</b><small>Warte auf Spieler 2</small></div>':''}</div>`;
      const cfg=current.isHost?lobbyEditor():`<div class="lobby-rules"><b>Aktuelle Einstellungen</b><p>${escape(current.modeLabel)} · ${current.budget} € · ${auctionName()} · ${current.timeLimit?`${current.timeLimit} Sekunden`:'ohne Zeitlimit'} ${isShort()?`· ${limit()} Spieler`:''}</p><small>Der Host kann die Einstellungen bis zum Start ändern.</small></div>`;
      const start=current.isHost?`<button class="btn btn-primary btn-full" type="button" data-start ${full?'':'disabled'}>${full?'🚀 Spiel starten':'Warte auf Mitspieler …'}</button>`:`<div class="lobby-waiting">⏳ Der Host startet das Spiel, sobald ihr bereit seid.</div>`;
-     return `<div class="game-shell">${header()}<section class="waiting-card lobby-card"><div class="waiting-icon">🎮</div><h2>Spiel-Lobby</h2><p class="muted">Seht, wer dabei ist, passt eure Regeln an und startet erst, wenn ihr bereit seid.</p>${seats}<div class="invite-code">${current.code}</div><div class="invite-actions"><button class="btn btn-white" type="button" data-copy="code">📋 Code kopieren</button><button class="btn btn-white" type="button" data-copy="link">🔗 Link kopieren</button></div>${cfg}${start}<p class="muted lobby-footnote">💡 Nach dem Finale könnt ihr mit demselben Raumcode noch eine Runde spielen.</p></section></div>`;
+     return `<div class="game-shell">${header()}<section class="waiting-card lobby-card"><div class="waiting-icon">🎮</div><h2>Spiel-Lobby</h2><p class="muted">Seht, wer dabei ist, passt eure Regeln an und startet erst, wenn ihr bereit seid.</p>${current.lobbyNotice?`<div class="lobby-notice" role="status">${escape(current.lobbyNotice)}</div>`:''}${seats}<div class="invite-code">${current.code}</div><div class="invite-actions"><button class="btn btn-white" type="button" data-copy="code">📋 Code kopieren</button><button class="btn btn-white" type="button" data-copy="link">🔗 Link kopieren</button></div>${cfg}${start}<p class="muted lobby-footnote">💡 Nach dem Finale könnt ihr mit demselben Raumcode noch eine Runde spielen.</p></section></div>`;
    }
    function syncLobbyControls(){
      const mode=$('#lobbyMode'),variant=$('#lobbyVariant'),budget=$('#lobbyBudget');if(!mode||!variant||!budget)return;
@@ -145,6 +153,7 @@
      budget.innerHTML=dropdownOptions(options,options.some(([n])=>n===old)?old:(football&&!short?50:20));
    }
    function bidControls(){
+     if(current.paused)return `<div class="bid-locked">📡 Auktion pausiert. Dein Mitspieler ist kurz offline. Wir versuchen, die Verbindung wiederherzustellen.</div>`;
      if(current.auctionType==='open')return openBidControls();
      const player=me();
      const extra=current.status==='tiebreak'?`<div class="tie-alert"><span>🤝</span><div><strong>Gleichstand bei ${current.tieInfo.amount} €!</strong><p>Jetzt folgt ein einmaliges geheimes Stechen. Ihr könnt frei neu bieten (0 bis Restbudget). Bei erneutem Gleichstand erhält niemand das Item – ohne Kosten.</p></div></div>`:'';
@@ -184,13 +193,29 @@
      const isFootball=current.mode==='football';
      const photo=isFootball?portrait(current.card,'main'):`<div class="auction-item" aria-hidden="true">${escape(current.card.emoji)}</div>`;
      const alternates=isFootball?`<div class="football-options"><div class="football-option-info">🎯 <b>Freie Wahl:</b> Biete nur auf Spieler, die du wirklich möchtest. Ohne Zuschlag kein Spieler und keine Kosten.</div><div class="football-rating-tip">${current.card.flag} <b>${current.card.rating} OVR</b> · ${escape(current.card.type)} <small>Eigene BidBattle-Spielwerte – keine EA-FC-Ratings</small></div></div>`:'';
-     return `<div class="game-shell">${header()}<div class="round-progress"><strong>🔨 ${isFootball?'Fußballer':'Auktion'} ${current.round+1} von ${current.total}</strong><div class="progress-track"><div class="progress-fill" style="width:${((current.round+1)/current.total)*100}%"></div></div><span class="muted" style="font-size:12px">${current.total-current.round-1} danach</span></div>${current.deadline?`<div class="round-timer">⏱️ Zeit für dein Gebot: <strong id="countdown">…</strong></div>`:''}<div class="duel-layout">${playerPanel(players()[0],0)}<section class="auction-panel"><span class="auction-label">${escape(current.card.type)} · ${current.status==='reveal'?'ERGEBNIS':current.status==='tiebreak'?'STECHEN':'JETZT BIETEN'}</span>${photo}<h2>${escape(current.card.title)}</h2><p class="item-detail">${escape(current.card.detail)}</p>${current.status==='reveal'?reveal():alternates+bidControls()}</section>${playerPanel(players()[1],1)}</div>${isFootball?`<div class="photo-credit-note">Porträts, falls verfügbar: Wikimedia Commons. Über ⓘ gelangst du zu Urheber und Lizenz. Die Ratings sind eigene Spielwerte.</div>${lineupEditor(me())}`:''}</div>`;
+     return `<div class="game-shell">${header()}<div class="round-progress"><strong>🔨 ${isFootball?'Fußballer':'Auktion'} ${current.round+1} von ${current.total}</strong><div class="progress-track"><div class="progress-fill" style="width:${((current.round+1)/current.total)*100}%"></div></div><span class="muted" style="font-size:12px">${current.total-current.round-1} danach</span></div>${current.deadline?`<div class="round-timer">⏱️ Zeit für dein Gebot: <strong id="countdown">…</strong></div>`:''}<div class="duel-layout">${playerPanel(players()[0],0)}<section class="auction-panel"><span class="auction-label">${escape(current.card.type)} · ${current.status==='reveal'?'ERGEBNIS':current.status==='tiebreak'?'STECHEN':'JETZT BIETEN'}</span>${photo}<h2>${escape(current.card.title)}</h2><p class="item-detail">${escape(current.card.detail)}</p>${current.status==='reveal'?reveal():alternates+bidControls()}</section>${playerPanel(players()[1],1)}</div>${isFootball?`<div class="photo-credit-note">Porträts nur aus eindeutig zugeordneten Wikipedia-Artikeln. Ohne verlässliches Bild erscheint die Landesflagge. ⓘ öffnet die Bildquelle. Die Ratings sind eigene Spielwerte.</div>${lineupEditor(me())}`:''}</div>`;
    }
    function autoFillScreen(){
      const a=current.autoFillLast, receiver=players().find(p=>p.id===a?.playerId);
      return `<div class="game-shell">${header()}<section class="autofill-card"><div class="autofill-eyebrow">✨ AUTOMATISCHE AUFFÜLLPHASE</div><h2>Ein Spieler ist fertig!</h2><p>Es wird nicht mehr geboten. Die nächsten Spieler aus dem Angebotspool gehen jetzt <b>kostenlos</b> und nacheinander an ${escape(receiver?.name||'den anderen Spieler')}.</p>${a?`<div class="autofill-reveal" key="${escape(a.card.id)}"><div class="autofill-portrait">${portrait(a.card,'main')}</div><strong>${escape(a.card.title)}</strong><span>${a.card.rating} OVR · ${escape(a.card.type)}</span><div class="autofill-granted">✓ An ${escape(a.playerName)} vergeben · ${a.received}/${a.limit}</div></div>`:''}<div class="lobby-players">${players().map(p=>`<div class="lobby-seat"><b>${escape(p.name)}</b><small>${p.items.length}/${limit()} Spieler</small></div>`).join('')}</div><p class="muted">Die nächste Karte wird automatisch aufgedeckt …</p></section></div>`;
    }
-   function updateCountdown(){const el=$('#countdown');if(!el||!current?.deadline)return;const left=Math.max(0,Math.ceil((current.deadline-Date.now())/1000));el.textContent=left+' s';el.classList.toggle('timer-low',left<=5);}
+   function playTick(frequency=530){
+    if(!soundEnabled)return;
+    try{const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)return;
+      audioCtx||=new Ctx();if(audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});
+      const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type='sine';osc.frequency.value=frequency;
+      gain.gain.setValueAtTime(0.0001,audioCtx.currentTime);gain.gain.exponentialRampToValueAtTime(0.09,audioCtx.currentTime+0.018);gain.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.14);
+      osc.connect(gain);gain.connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+0.15);
+    }catch{}
+  }
+  function countdownScreen(){return `<div class="game-shell">${header()}<section class="countdown-stage"><span class="countdown-subtitle">🏆 Macht euch bereit</span><h2>Das Duell startet!</h2><div class="countdown-number" id="start-countdown">3</div><p>Gleich geht es los. Viel Spaß beim Bieten!</p><button type="button" class="btn btn-white" data-sound-toggle>${soundEnabled?'🔊 Ton an':'🔇 Ton aus'} · ändern</button></section></div>`;}
+  function updateCountdown(){
+    const el=$('#countdown');if(el&&current?.deadline){const left=Math.max(0,Math.ceil((current.deadline-Date.now())/1000));el.textContent=left+' s';el.classList.toggle('timer-low',left<=5);}
+    const start=$('#start-countdown');if(start&&current?.countdownEnds){const ms=current.countdownEnds-Date.now();const second=ms<=700?0:Math.min(3,Math.max(1,Math.ceil((ms-700)/1000)));
+      start.textContent=second===0?'BID!':String(second);
+      if(lastCountdownSecond!==second){lastCountdownSecond=second;playTick(second===0?820:440+100*(3-second));}
+    }
+  }
    function summaryPlayer(p){
      const face=`<div class="summary-emoji avatar-${escape(p.avatarColor)}">${escape(p.avatar)}</div>`;
      const content=current.mode==='football'?`${isShort()?'':`<div class="full-pitch-wrap">${pitch(p.items,false,p.lineup)}</div>`}<div class="roster-list ${isShort()?'byp-summary-list':''}">${p.items.length?p.items.map(x=>`<div>${portrait(x,'tiny')}<span>${escape(x.title)}</span><small>${x.rating} OVR · ${escape(x.type)}</small></div>`).join(''):'<p class="muted">Keine Fußballer ersteigert</p>'}</div>`
@@ -200,10 +225,11 @@
    function confetti(){return `<div class="victory-confetti" aria-hidden="true">${Array.from({length:45},(_,i)=>`<i style="--x:${(i*61)%100}%;--d:${(i*7)%19/10}s;--dur:${2.2+(i%7)*.21}s;--rot:${(i*71)%720}deg;--color:${['#ffd34c','#8652f5','#6fd3fc','#ff89ac','#67dca2'][i%5]}"></i>`).join('')}</div>`;}
    function votingScreen(){let actions;if(current.status==='complete'){
        const winner=current.winner?players().find(p=>p.id===current.winner):null;
-       actions=winner?`<div class="victory-stage">${confetti()}<div class="victory-trophy">🏆</div><h2>GEWONNEN!</h2><p>${escape(winner.name)} gewinnt das Duell! 🎉</p></div>`:`<div class="winner-banner"><span>🤝</span>Unentschieden! Ihr habt unterschiedlich abgestimmt.</div>`;
-       actions+=`<button class="btn btn-primary" type="button" data-rematch>🔁 Noch eine Runde – zurück zur Lobby</button>`;
+       actions=winner?`<div class="victory-stage">${confetti()}<div class="victory-trophy">🏆</div><h2>GEWONNEN!</h2><p>${escape(winner.name)} gewinnt das Duell! 🎉</p></div>`:`<div class="winner-banner"><span>🤝</span>Unentschieden! ${current.tieBreakReason==='mutual-tie'?'Ihr habt beide Unentschieden gewählt.':'Eure Stimmen oder Ratings ergaben keinen eindeutigen Sieger.'}</div>`;
+       const iReady=(current.rematchReady||[]).includes(current.ownId);
+       actions+=`${current.tieBreakReason==='rating'?'<div class="tie-rating-note">⚖️ Rating-Stichentscheid: höherer Teamdurchschnitt gewinnt.</div>':''}<div class="postgame-actions"><button class="btn btn-primary" type="button" data-playagain ${iReady?'disabled':''}>${iReady?'✅ Bereit – warte auf deinen Freund':'🔁 Nochmal spielen'}</button><button class="btn btn-white" type="button" data-rematch>⚙️ Zur Lobby / Einstellungen</button><button class="btn btn-outline-danger" type="button" data-leave>🚪 Spiel verlassen</button></div><p class="postgame-note">${(current.rematchReady||[]).length}/2 bereit für das direkte Rückspiel. Beide bestätigen, damit niemand überraschend eine neue Runde startet.</p>`;
      } else if(me().hasVoted){actions=`<div class="vote-pending">✅ Deine Stimme wurde gespeichert. Warte auf die zweite Abstimmung (${current.votesCast} von 2).</div>`;}
-     else{actions=`<h3>Wer hat das bessere Ergebnis gebaut?</h3><p class="muted">Jeder hat eine Stimme. Bei Gleichstand endet das Spiel unentschieden.</p><div class="vote-actions">${players().map(p=>`<button class="btn btn-primary" type="button" data-vote="${p.id}">🏅 ${escape(p.name)} wählen</button>`).join('')}</div>`;}
+     else{actions=`<h3>Wer hat das bessere Ergebnis gebaut?</h3><p class="muted">Bei gleichen Stimmen gewinnt die Auswahl. Bei verschiedenen Stimmen entscheidet im Fußball das durchschnittliche Rating, sonst bleibt es unentschieden.</p><div class="vote-actions">${players().map(p=>`<button class="btn btn-primary" type="button" data-vote="${p.id}">🏅 ${escape(p.name)} wählen</button>`).join('')}<button class="btn btn-white" type="button" data-vote="tie">🤝 Unentschieden</button></div>`;}
      return `<div class="game-shell">${header()}<section class="vote-card"><div class="waiting-icon">${current.status==='complete'?'🎊':'🎨'}</div><h2 class="game-title">${current.status==='complete'?'Das Ergebnis steht fest!':'Zeit für das große Finale!'}</h2><p class="muted">${current.mode==='football'?(isShort()?'Vergleicht eure selbst ersteigerten Spieler. Die Ratings sind nur eine Orientierung – eure Stimmen entscheiden, nicht der Durchschnitt.':'Vergleicht eure selbst ersteigerten Fußballer und 4-3-3-Aufstellungen. Freie Plätze bleiben frei.'):'Vergleicht eure Kreationen und kürt den Sieger.'}</p><div class="summary-grid">${players().map(summaryPlayer).join('')}</div>${current.mode==='football'&&!isShort()?lineupEditor(me()):''}${actions}</section></div>`;
    }
    async function getPhoto(id){
@@ -224,11 +250,30 @@
        const info=await getPhoto(el.dataset.photoId);if(!info||!el.isConnected)return;
        const img=document.createElement('img');img.src=info.src;img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';
        img.onerror=()=>img.remove();el.append(img);
-       const credit=document.createElement('a');credit.className='portrait-source';credit.href=info.source;credit.target='_blank';credit.rel='noopener noreferrer';credit.textContent='ⓘ';credit.title='Bildnachweis und Lizenz auf Wikimedia Commons';credit.setAttribute('aria-label','Bildquelle und Lizenz öffnen');el.append(credit);
+       const credit=document.createElement('a');credit.className='portrait-source';credit.href=info.source;credit.target='_blank';credit.rel='noopener noreferrer';credit.textContent='ⓘ';credit.title='Bildnachweis und Lizenz auf Wikimedia Commons';credit.setAttribute('aria-label','Bildquelle und Lizenz öffnen');img.addEventListener('load',()=>{if(el.isConnected)el.append(credit);},{once:true});
      });
    }
-   function render(){if(!current)return;$('#gameContent').innerHTML=current.status==='waiting'?waitingScreen():current.status==='autofill'?autoFillScreen():['bidding','tiebreak','reveal'].includes(current.status)?auctionScreen():votingScreen();if(current.mode==='football')hydratePortraits();updateCountdown();updateHeader();}
+   function render(){if(!current)return;$('#exitGame').textContent=current.status==='waiting'?'← Spiel verlassen':'← Zur Lobby';$('#gameContent').innerHTML=current.status==='waiting'?waitingScreen():current.status==='countdown'?countdownScreen():current.status==='autofill'?autoFillScreen():['bidding','tiebreak','reveal'].includes(current.status)?auctionScreen():votingScreen();if(current.mode==='football')hydratePortraits();if(current.status!=='countdown')lastCountdownSecond=null;updateCountdown();updateHeader();}
   async function postAction(action, data={}){if(requestPending||!session)return;requestPending=true;try{const state=await request(`/api/rooms/${session.code}/${action}`,'POST',{token:session.token,...data});current=state;render();}catch(err){notify(err.message);}finally{requestPending=false;}}
+  function navigateHome(){if(session&&current){leaveRoom();}else showHome();}
+  async function leaveRoom(){
+    if(!session)return showHome();
+    if(current?.status!=='complete'&&current?.status!=='waiting'&&!confirm('Möchtest du den Raum wirklich verlassen? Dein Mitspieler bekommt eine Nachricht.'))return;
+    try{await request(`/api/rooms/${session.code}/leave`,'POST',{token:session.token});}
+    catch(err){notify(err.message);return;}
+    stopEvents();sessionStorage.removeItem('bidbattle-session');session=null;current=null;showHome();notify('Du hast den Spielraum verlassen.');
+  }
+  function showCollection(ownerId,index){
+    if(!current||current.mode==='football')return;
+    const owner=players().find(x=>x.id===ownerId),item=owner?.items[index];if(!item)return;
+    $('#collectionTitle').textContent=`${item.emoji} ${item.title}`;
+    $('#collectionOwner').textContent=`${owner.name} · ${item.type}`;
+    $('#collectionDescription').textContent=item.detail;
+    openDialog('collectionDialog');
+  }
+  function setIdentity(mode){identityMode=mode;localStorage.setItem('bidbattle-identity',mode);closeDialogs();const incoming=new URLSearchParams(location.search).get('room');if(incoming&&!session)joinModal(incoming);}
+  function showAuth(mode){loginMode=mode;$('#accountNameWrap').classList.toggle('hidden',mode==='login');$('#accountHeading').textContent=mode==='login'?'Bei BidBattle anmelden':'Kostenloses Konto erstellen';$('#authSubmit').textContent=mode==='login'?'Anmelden':'Registrieren';$('#accountName').required=mode!=='login';$('#accountName').value=savedName();openDialog('accountDialog');}
+  async function authRestore(){if(!authToken)return;try{const v=await request('/api/auth/me');account=v.user;identityMode='account';localStorage.setItem('bidbattle-identity','account');persistName(account.name);}catch{authToken='';localStorage.removeItem('bidbattle-auth-token');identityMode='';}}
   async function copyText(value){try{await navigator.clipboard.writeText(value);notify('Kopiert! 🎉');}catch{const temp=document.createElement('textarea');temp.value=value;temp.style.position='fixed';temp.style.opacity='0';document.body.append(temp);temp.select();try{document.execCommand('copy');notify('Kopiert! 🎉');}catch{notify(`Zum Kopieren: ${value}`);}temp.remove();}}
 
   // Homepage and navigation: fewer buttons and real Home actions.
@@ -236,7 +281,7 @@
   countdownTicker=setInterval(updateCountdown,220);
   $$('[data-create]').forEach(el=>el.addEventListener('click',()=>{
     if(el.classList.contains('header-cta')){
-      if(el.dataset.headerAction==='home'){showHome();return;}
+      if(el.dataset.headerAction==='home'){navigateHome();return;}
       if(el.dataset.headerAction==='game'){showGame();return;}
     }
     createModal();
@@ -246,10 +291,32 @@
   $$('[data-football-choice]').forEach(el=>el.addEventListener('click',()=>{closeDialogs();createModal('football',el.dataset.footballChoice);}));
   $$('[data-close]').forEach(el=>el.addEventListener('click',()=>el.closest('dialog').close()));
   $$('dialog').forEach(el=>el.addEventListener('click',event=>{if(event.target===el)el.close();}));
-  $('#profileBtn').addEventListener('click',()=>{$('#profileName').value=savedName();openDialog('profileDialog');});
-  $('#profileForm').addEventListener('submit',e=>{e.preventDefault();persistName($('#profileName').value);closeDialogs();notify('Spielname und Avatar gespeichert – für neue Duelle.');});
-  $('#exitGame').addEventListener('click',showHome);
-  $('#homeLogo').addEventListener('click',()=>{showHome();});
+  $('#profileBtn').addEventListener('click',()=>{$('#profileName').value=savedName();$('#accountActions').classList.toggle('hidden',!account);$('#guestAccountActions').classList.toggle('hidden',!!account);openDialog('profileDialog');});
+  $('#profileForm').addEventListener('submit',async e=>{e.preventDefault();const name=$('#profileName').value;
+    if(account){try{const r=await request('/api/auth/profile','POST',{name,avatar:chosenAvatar,avatarColor:chosenColor});account=r.user;}catch(err){notify(err.message);return;}}
+    persistName(name);closeDialogs();notify('Profil gespeichert – für neue Duelle.');});
+  $('#guestRegister').addEventListener('click',()=>{closeDialogs();showAuth('register');});
+  $('#guestLogin').addEventListener('click',()=>{closeDialogs();showAuth('login');});
+  $('#chooseGuest').addEventListener('click',()=>setIdentity('guest'));
+  $('#chooseRegister').addEventListener('click',()=>{closeDialogs();showAuth('register');});
+  $('#chooseLogin').addEventListener('click',()=>{closeDialogs();showAuth('login');});
+  $('#authSwitch').addEventListener('click',()=>showAuth(loginMode==='login'?'register':'login'));
+  $('#accountForm').addEventListener('submit',async e=>{e.preventDefault();const button=$('#authSubmit');button.disabled=true;
+    try{const r=await request(`/api/auth/${loginMode}`,'POST',{email:$('#accountEmail').value,password:$('#accountPassword').value,name:$('#accountName').value,avatar:chosenAvatar,avatarColor:chosenColor});
+      authToken=r.token;account=r.user;localStorage.setItem('bidbattle-auth-token',authToken);identityMode='account';localStorage.setItem('bidbattle-identity','account');persistName(account.name);closeDialogs();notify('Du bist angemeldet!');
+      const incoming=new URLSearchParams(location.search).get('room');if(incoming&&!session)joinModal(incoming);
+    }catch(err){notify(err.message);}finally{button.disabled=false;}
+  });
+  $('#logoutAccount').addEventListener('click',async()=>{if(!account)return;await request('/api/auth/logout','POST',{}).catch(()=>{});account=null;authToken='';identityMode='';localStorage.removeItem('bidbattle-auth-token');localStorage.removeItem('bidbattle-identity');closeDialogs();openDialog('entryDialog');});
+  $('#deleteAccount').addEventListener('click',async()=>{if(!account)return;const pw=prompt('Zur Kontolöschung bitte dein Passwort eingeben:');if(!pw)return;
+    try{await request('/api/auth/delete','POST',{password:pw});account=null;authToken='';identityMode='';localStorage.removeItem('bidbattle-auth-token');localStorage.removeItem('bidbattle-identity');closeDialogs();openDialog('entryDialog');notify('Konto gelöscht.');}catch(err){notify(err.message);}
+  });
+  $('#exitGame').addEventListener('click',()=>{
+    if(!session){showHome();return;}if(current?.status==='waiting'){leaveRoom();return;}
+    if(current?.status==='complete'){postAction('lobby');return;}
+    if(confirm('Die aktuelle Partie für beide Spieler beenden und in die gemeinsame Lobby zurückkehren?'))postAction('lobby');
+  });
+  $('#homeLogo').addEventListener('click',e=>{e.preventDefault();navigateHome();});
   function updateBudgetOptions(){
     const select=$('#createBudget');
     const football=$('#createMode').value==='football';
@@ -282,7 +349,11 @@
      if(e.target.closest('[data-open-pass]'))return postAction('pass');
     const voter=e.target.closest('[data-vote]');if(voter)return postAction('vote',{winnerId:voter.dataset.vote});
     const copier=e.target.closest('[data-copy]');if(copier)return copyText(copier.dataset.copy==='code'?current.code:shareLink());
-    if(e.target.closest('[data-rematch]'))return postAction('rematch');
+    if(e.target.closest('[data-rematch]'))return postAction('lobby');
+    if(e.target.closest('[data-leave]'))return leaveRoom();
+    if(e.target.closest('[data-sound-toggle]')){soundEnabled=!soundEnabled;localStorage.setItem('bidbattle-sound',soundEnabled?'on':'off');render();return;}
+    const ingredient=e.target.closest('[data-item-index]');if(ingredient)return showCollection(ingredient.dataset.ownerId,Number(ingredient.dataset.itemIndex));
+    if(e.target.closest('[data-playagain]'))return postAction('playagain');
     if(e.target.closest('[data-start]'))return postAction('start');
   });
   $('#gameContent').addEventListener('change',e=>{
@@ -298,9 +369,10 @@
 
   // Restore a session on reload. Each browser tab can hold its own player seat.
   persistName(savedName());
+  authRestore().then(()=>{if(!identityMode&&!session)openDialog('entryDialog');});
   const incoming=new URLSearchParams(location.search).get('room');
   try{session=JSON.parse(sessionStorage.getItem('bidbattle-session')||'null');}catch{session=null;}
   if(session?.code && session?.token && (!incoming || incoming===session.code)){
     showGame();refresh().then(connect).catch(()=>{sessionStorage.removeItem('bidbattle-session');session=null;showHome();if(incoming)joinModal(incoming);});
-  }else if(incoming && /^[A-Z2-9]{6}$/.test(incoming)){joinModal(incoming);}
+  }else if(incoming && /^[A-Z2-9]{6}$/.test(incoming)&&identityMode){joinModal(incoming);}
 })();

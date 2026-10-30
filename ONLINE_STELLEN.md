@@ -1,52 +1,41 @@
-# BidBattle öffentlich online stellen – Version 1.6
+# BidBattle 1.7 auf GitHub und Render aktualisieren
 
-Diese Dateien sind für GitHub + Render vorbereitet. Sie enthalten den neuen Fußball-Kurzmodus, den vorhandenen Startelf-Modus und die bisherigen anderen Spiele.
+**Vor dem Update:** Laufende Partien beenden. Der bisherige Version-1.6.1-Server hält vorhandene Spielräume nur im Arbeitsspeicher; diese alten Räume lassen sich nicht nach 1.7 migrieren.
 
-## 1) GitHub
+## A. Dateien über GitHub hochladen
 
-1. Auf https://github.com anmelden.
-2. Dein bereits bestehendes Repository `bidbattle-website` öffnen. Du brauchst kein neues anzulegen.
-3. Im Repository `Add file` > `Upload files` anklicken.
-4. **Den INHALT** dieses entpackten Ordners hochladen, **nicht die ZIP-Datei** und **nicht einen übergeordneten Ordner**: `package.json`, `server.js`, `football.js`, `render.yaml` sowie die Ordner `public/` und `tests/`. `BidBattle-starten.bat` ist nur für Windows und optional.
-5. Beim Update die gleichnamigen Dateien und Unterordner **ersetzen** (nicht doppelt ablegen) und mit `Commit changes` speichern. Danach müssen `package.json`, `server.js` und `football.js` direkt im Hauptverzeichnis liegen; `index.html`, `app.js` und `styles.css` gehören in den Unterordner `public/`. **Achtung:** Wenn dein altes Repository diese Dateien nur im Hauptverzeichnis hat, lösche die alten doppelten Dateien und halte dich an die neue Ordnerstruktur. `server.js` erwartet den Ordner `public/`.
+1. `BidBattle-Website-v1.7.zip` herunterladen und vollständig entpacken.
+2. GitHub-Repository `bidbattle-website` aufrufen, `Add file` → `Upload files` wählen. **Alle Dateien und Ordner aus dem entpackten Verzeichnis** hochladen, nicht die ZIP selbst. Gleiche Pfade ersetzen; unnötige alte Dateien bei Bedarf separat löschen.
+3. Auf die Pfade achten: `server.js`, `football.js`, `storage.js`, `package.json`, `render.yaml` und `schema.sql` liegen im Repo-Hauptordner. Im Unterordner `public/` liegen `app.js`, `index.html`, `styles.css`, `favicon.svg`.
+4. **Commit directly to main** wählen, dann `Commit changes`.
+5. In Render deinen bestehenden Web Service öffnen; bei aktiviertem Auto-Deploy wird die neue Version veröffentlicht. Sonst `Manual Deploy` → `Deploy latest commit`.
 
-## 2) Render
+## B. Dauerhafte Speicherlösung für Konten und Lobbys
 
-1. https://dashboard.render.com aufrufen und GitHub verbinden.
-2. `New` > `Web Service` wählen und das BidBattle-Repository verbinden.
-3. Wenn dein Render-Web-Service bereits existiert, brauchst du **keinen neuen Web-Service**. Unter `Settings` prüfen, dass das GitHub-Repository verbunden und Auto-Deploy aktiviert ist.
-4. Nach `Commit changes` veröffentlicht Render das Update automatisch, sofern Auto-Deploy aktiv ist. Andernfalls `Manual Deploy` > `Deploy latest commit` wählen.
-5. Nach Status `Live` dieselbe bisherige HTTPS-Adresse nutzen, z. B. `https://bidbattle-8kkc.onrender.com`. Falls die alte Version angezeigt wird, Browser neu laden (`Strg + F5`).
+Render-Web-Services besitzen ohne persistenten Datenträger standardmäßig ein flüchtiges Dateisystem. Daher reicht eine normale JSON-Datei auf Render **nicht** zur dauerhaften Speicherung. Für den kostengünstigen Start unterstützt Version 1.7 eine externe Supabase-PostgreSQL-Datenbank über deren REST API. Deren Tarif, Verbrauchsgrenzen und Verfügbarkeit vor der Registrierung prüfen.
 
-Alternativ kann das mitgelieferte `render.yaml` unter `New` > `Blueprint` verwendet werden, falls Render den Import anbietet. Für Einsteiger ist `New` > `Web Service` ausreichend.
+1. Auf https://supabase.com ein eigenes Supabase-Projekt anlegen.
+2. In diesem Projekt unter **SQL Editor** das mitgelieferte `schema.sql` ausführen. Es legt die Tabelle `public.bidbattle_store` an und aktiviert RLS. Es werden bewusst keine Policies für Browserzugriff erstellt.
+3. Die **Project URL** (z. B. `https://beispiel.supabase.co`) und einen **Secret API Key** `sb_secret_...` unter den Projekteinstellungen holen. Alternativ funktioniert technisch ein älterer `service_role`-Schlüssel, ist aber veraltet.
+4. In Render: BidBattle Web Service → **Environment**. Zwei Variablen hinzufügen:
 
-## 3) Testen
+   `SUPABASE_URL` = deine Project URL
 
-- Auf Gerät A ein Spiel erstellen und den angezeigten Raumcode teilen.
-- Auf Gerät B unter derselben **öffentlichen Render-Adresse** beitreten.
-- Falls die Seite zuerst lange lädt: Free-Dienste schlafen nach Inaktivität ein.
-- Bei Änderungen am GitHub-Repository wird die App bei aktiviertem Auto-Deploy neu bereitgestellt.
+   `SUPABASE_SECRET_KEY` = dein **geheimer** Supabase-Server-Key (`sb_secret_...`)
 
-## Wichtig
+5. Änderungen speichern und bei Bedarf deployen. **Den Secret Key niemals ins GitHub-Repository, in die Website oder in den Chat kopieren.**
+6. Über `https://DEINE-RENDER-ADRESSE/api/health` prüfen, ob `storage.kind` auf `supabase` steht, `storage.lastError` null ist und `accountsEnabled` true ist.
+7. Mit zwei Browsern eine Testlobby erstellen, registrieren und einen Neustart durchführen, um den Betrieb zusätzlich auf Render zu prüfen.
 
-- Die Spielräume liegen derzeit ausschließlich im Arbeitsspeicher des Servers. Bei Neustart, automatischem Einschlafen oder Redeploy werden sie gelöscht. Damit ist Version 1.6 gut zum Testen, aber noch kein ausfallsicherer Dauerbetrieb.
-- Die Fußballfotos werden von externen Wikimedia-Diensten nachgeladen. Vor einer breiten öffentlichen Nutzung bitte Lizenzen/Urheberkennzeichnungen und Datenschutz prüfen.
-- Es wird nur mit **virtuellen Euro** geboten; kein echtes Geld.
-- `http://localhost:3000` ist nur die lokale Adresse auf deinem PC. Für andere Spieler zählt die von Render zugewiesene öffentliche HTTPS-Adresse.
-- Der Server nutzt `process.env.PORT` und lauscht auf `0.0.0.0`; es sind für Render daher keine Änderungen an `server.js` nötig.
-- Falls `bidbattle-web` als Render-Dienstname bereits vergeben ist, einfach einen anderen eindeutigen Namen auswählen.
+Ohne externe DB bleiben lokale Tests auf deinem PC möglich. Auf Render funktioniert Gastspielen, aber Registrierungen werden ohne konfigurierten dauerhaften Speicher bewusst verhindert. Zum Fehlerfinden stehen im Render-Dashboard unter **Logs** die Meldungen `SPEICHERFEHLER` oder `Konnte BidBattle-Speicher nicht laden`. Nach Supabase-Einrichtung sollten solche Meldungen nicht auftreten.
 
-## Neu in Version 1.6
+**Datensicherheit:** Diese erste Version speichert alle Räume und Konten als ein serverseitiges Snapshot-Dokument. Supabase-Secret-Key ist nur auf dem Server erlaubt. Die Lösung eignet sich für Tests mit einem einzelnen Server, noch nicht als hochverfügbares System für viele Tausend Nutzer.
 
-- **Vorlobby:** Beitreten startet nicht automatisch. Nur der Host startet manuell. Beide sehen die Teilnehmer und Regeln.
-- Vor dem Start darf der Host Modus, Fußballvariante, Spielerlimit, Budget, Auktionsart und Zeitlimit ändern. Bitte nach Änderungen „Einstellungen speichern“ klicken.
-- **Bid Your Player:** Wahl zwischen 20, 30, 40 und 50 € virtuellen Budget.
-- Sobald eine Person ihre Zielanzahl erreicht, werden die nächsten Karten aus den noch verbleibenden gemischten Angeboten dem anderen Spieler **nacheinander und kostenlos** zugeteilt. Eine kleine Aufdeckanimation zeigt jede Vergabe; es werden keine weiteren Gebote abgegeben.
-- Bei offenem Überbieten beginnt der **letzte Auktionsgewinner** die nächste Runde, sofern er noch bieten darf. Bei verdeckten Geboten bieten beide weiterhin unabhängig.
-- Zeitlimits 10, 15 (Standard), 30, 60 Sekunden oder unbegrenzt. Bei Zeitablauf gilt das Gebot als Passen; der Server steuert die Uhr.
-- Kleine rote Meldung, wenn man überboten wird.
-- **Noch eine Runde:** Nach dem Finale bleiben beide im selben Raum und kehren in dieselbe Lobby zurück. Host kann Regeln ändern und wieder starten.
+## C. Konto und Mobiltest
 
-## Testen
-
-`npm test` testet Grundmodi, Fußballmodi, Vorlobby, Zeitlimits, automatische Vergabe, Rematch und Abstimmung.
+- Als Gast spielen: kein Konto nötig, wie bisher.
+- Registrieren: Name, E-Mail und Passwort (mindestens 10 Zeichen); Anmeldung und Profil-Änderung prüfen.
+- Nach Spielabschluss „Nochmal spielen“, „Zur Lobby“ und „Spiel verlassen“ einzeln testen. Dem verbleibenden Spieler wird der Austritt mitgeteilt.
+- Bei aktivem Spiel kurz WLAN/Netz wechseln und prüfen, dass das Gebot pausiert und nach Wiederverbindung weiterläuft.
+- Ton im Countdown kann ausgeschaltet werden; auf manchen Smartphones ist vor dem ersten Ton eine Nutzerinteraktion nötig.
+- Auf der Website vor breitem öffentlichen Start Impressum, Datenschutz und Kontaktmöglichkeit ergänzen; die Konto-Funktion ist derzeit ein Prototyp ohne E-Mail-Bestätigung und Passwort-Wiederherstellung.

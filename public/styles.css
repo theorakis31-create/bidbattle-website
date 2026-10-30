@@ -204,3 +204,50 @@
 .autofill-granted{margin-top:8px;padding:8px 12px;border-radius:40px;background:#dff8e8;color:#187843;font-size:13px;font-weight:750}
 @keyframes flip-card{0%{opacity:0;transform:scale(.73) rotateY(50deg) translateY(13px)}100%{opacity:1;transform:scale(1) rotateY(0deg) translateY(0)}}
 @media(max-width:600px){.lobby-settings-grid{grid-template-columns:1fr}.lobby-config{padding:16px}.lobby-card{margin:12px auto 28px}.lobby-seat{padding:11px 6px}.lobby-face{width:46px;height:46px;font-size:25px}.autofill-card{padding:22px 12px}.autofill-card h2{font-size:24px}.outbid-flash{font-size:12px}}
+
+/* BidBattle 1.6.1 – readable final score on phones, no truncated football names */
+.summary-grid,.summary-player,.roster-list,.byp-roster,.byp-roster-item{min-width:0}
+.summary-player h3,.summary-total{overflow-wrap:anywhere;white-space:normal}
+.roster-list>div{flex-wrap:wrap;min-width:0;align-items:center}
+.roster-list>div span:nth-child(2){white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere;line-height:1.3;flex:1 1 52%}
+.roster-list>div small{white-space:normal;overflow-wrap:anywhere;flex:1 1 100%;padding-left:43px;text-align:left}
+.byp-roster-item span:not(.wiki-portrait):not(.portrait-placeholder){white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.3}
+.pitch-person>span:last-child{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.05;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.postgame-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:20px 0 9px}
+.postgame-actions>.btn{min-width:185px;white-space:normal}
+.postgame-note{font-size:12px;color:#6c789c;margin:0 0 12px}
+.lobby-notice{padding:12px 14px;border:1px solid #dcd9ff;background:#f4f1ff;color:#5f4ca7;border-radius:13px;font-weight:700;font-size:13px;margin:16px 0}
+@media(max-width:680px){
+  .summary-grid{grid-template-columns:minmax(0,1fr)!important;gap:14px}
+  .summary-player{padding:18px 14px!important;min-width:0}
+  .summary-player h3{font-size:19px}
+  .summary-total{font-size:12px;line-height:1.45}
+  .roster-list>div{gap:8px;padding:8px 10px}
+  .roster-list>div span:nth-child(2){font-size:13px}
+  .roster-list>div small{font-size:11px}
+  .byp-roster{grid-template-columns:minmax(0,1fr)}
+  .pitch-person>span:last-child{font-size:8px}
+  .postgame-actions{flex-direction:column}
+  .postgame-actions>.btn{width:100%}
+}
+@media(prefers-reduced-motion:reduce){.postgame-actions,.lobby-notice{animation:none!important}}
+
+/* BidBattle 1.7: account entry, synchronized countdown, visibility and leave */
+.connection-banner{position:fixed;left:50%;top:10px;transform:translateX(-50%);width:min(94vw,510px);padding:12px 17px;border-radius:14px;background:#fff4dc;color:#764d00;font-size:13px;font-weight:750;box-shadow:0 10px 30px #1a255022;z-index:110;text-align:center}
+.account-choice-dialog .dialog-content{max-width:470px}
+.entry-options{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0 12px}
+.entry-option{border-radius:17px;border:2px solid #dedbfa;padding:20px 10px;background:#f8f6ff;text-align:center;color:#222b4d;cursor:pointer;display:flex;flex-direction:column;gap:9px;align-items:center}
+.entry-option:hover,.entry-option:focus-visible{border-color:#8462e9;background:#f0eaff}
+.entry-option b{font-size:15px}.entry-option small{font-size:12px;color:#6d7994;line-height:1.4}
+.account-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:13px}.account-actions .btn{flex:1}
+.btn-outline-danger{border:1px solid #f2b8bf;background:#fff8f8;color:#b52b44;border-radius:14px;font-weight:800;padding:12px 18px;cursor:pointer}
+.btn-outline-danger:hover{background:#ffe7e9}
+.countdown-stage{min-height:430px;margin:20px auto;max-width:700px;padding:55px 22px;text-align:center;background:white;border-radius:29px;border:1px solid #e3e6f8;box-shadow:var(--shadow)}
+.countdown-stage h2{font-size:clamp(23px,4vw,33px);color:#222b4d}.countdown-subtitle{color:#7b56db;font-size:12px;letter-spacing:2px;font-weight:900}
+.countdown-number{font-size:clamp(76px,18vw,145px);font-weight:1000;color:#7654e9;line-height:1.4;text-shadow:0 9px 28px #7858e540;animation:countdown-pop .65s both}
+@keyframes countdown-pop{0%{transform:scale(.55);opacity:.3}100%{transform:scale(1);opacity:1}}
+.collection-description{padding:20px;border-radius:17px;background:#f5f3ff;color:#4b5882;margin:15px 0;font-size:15px;line-height:1.6}
+.inventory-item{cursor:pointer;font-family:inherit}.inventory-item:focus-visible{outline:3px solid #906cef;outline-offset:2px}
+.tie-rating-note{padding:10px 15px;background:#f7f2ff;border-radius:12px;color:#7050c2;font-weight:850;margin:12px auto}
+@media(max-width:520px){.entry-options{grid-template-columns:1fr}.entry-option{padding:14px 12px}.countdown-stage{padding:40px 12px;min-height:370px}.account-choice-dialog .dialog-content{padding:23px 17px}}
+@media(prefers-reduced-motion:reduce){.countdown-number{animation:none}}

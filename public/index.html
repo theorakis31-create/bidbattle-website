@@ -11,7 +11,7 @@
   <script src="/app.js" defer></script>
 </head>
 <body>
-  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="toast" role="status" aria-live="polite"></div><div id="connectionBanner" class="connection-banner hidden" role="status">📡 Verbindung unterbrochen – wir verbinden dich automatisch erneut …</div>
   <header class="site-header">
     <div class="container header-inner">
       <a class="brand" href="#home" aria-label="BidBattle Startseite" id="homeLogo"><span class="brand-crown" aria-hidden="true">♛</span><span>Bid<span class="brand-gradient">Battle</span></span></a>
@@ -71,7 +71,7 @@
 
   <main id="gameView" class="game-view hidden" aria-live="polite"><div class="container"><div class="game-topbar"><button type="button" id="exitGame" class="back-button">← Zur Startseite</button><span class="play-money-hint">🪙 Nur virtuelles Spielgeld</span></div><div id="gameContent"></div></div></main>
 
-  <footer class="site-footer"><div class="container footer-content"><div><strong>♛ Bid<span class="brand-gradient">Battle</span></strong><p>Bieten. Kreieren. Gewinnen.</p></div><div><small>Ein kostenloses Freundes-Spiel. Keine Echtgeld-Einsätze, keine Preise.</small><span>© 2026 BidBattle · Prototyp v1.6</span></div></div></footer>
+  <footer class="site-footer"><div class="container footer-content"><div><strong>♛ Bid<span class="brand-gradient">Battle</span></strong><p>Bieten. Kreieren. Gewinnen.</p></div><div><small>Ein kostenloses Freundes-Spiel. Keine Echtgeld-Einsätze, keine Preise.</small><span>© 2026 BidBattle · Prototyp v1.7</span></div></div></footer>
 
   <dialog id="footballChoiceDialog" class="app-dialog football-choice-dialog" aria-labelledby="footballChoiceTitle">
     <div class="dialog-content"><button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button>
@@ -88,6 +88,30 @@
 <label class="auction-choice"><input type="radio" name="auctionType" value="open"><span class="auction-choice-body"><b>👀 Offen überbieten</b><small>Ihr seid abwechselnd dran und seht das aktuelle Gebot. Wer zuletzt überboten hat, gewinnt, sobald der andere passt.</small></span></label>
 </div></div><p class="dialog-note">💡 Die Beträge sind nur Spielpunkte, kein echtes Geld.</p><button type="submit" class="btn btn-primary btn-full" id="createSubmit">Spiel erstellen →</button></form></dialog>
   <dialog id="joinDialog" class="app-dialog"><form id="joinForm" class="dialog-content"><button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button><div class="dialog-emoji">👋</div><h2>Du bist eingeladen!</h2><p>Gib den sechsstelligen Code deines Freundes ein.</p><label for="joinName">Dein Spielername</label><input id="joinName" name="name" type="text" maxlength="24" autocomplete="nickname" placeholder="z. B. Sam" required><label for="joinCode">Einladungscode</label><input id="joinCode" name="code" class="code-input" type="text" maxlength="6" minlength="6" placeholder="ABC234" autocapitalize="characters" spellcheck="false" required><button type="submit" class="btn btn-primary btn-full" id="joinSubmit">Spiel beitreten →</button></form></dialog>
-  <dialog id="profileDialog" class="app-dialog"><form id="profileForm" class="dialog-content"><button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button><div class="dialog-emoji">🙂</div><h2>Dein Spielerprofil</h2><p>Wähle deinen Namen, Avatar und deine Farbe. Diese werden für neue Spiele vorgeschlagen. Ein Benutzerkonto brauchst du noch nicht.</p><label for="profileName">Name</label><input id="profileName" name="name" type="text" maxlength="24" placeholder="Dein Name" required><button type="submit" class="btn btn-primary btn-full">Speichern</button></form></dialog>
+  <dialog id="profileDialog" class="app-dialog"><form id="profileForm" class="dialog-content"><button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button><div class="dialog-emoji">🙂</div><h2>Dein Spielerprofil</h2><p>Wähle deinen Namen, Avatar und deine Farbe. Diese werden für neue Spiele vorgeschlagen. Als Gast kannst du sofort spielen. Mit einem Konto bleibt dein Profil gespeichert.</p><label for="profileName">Name</label><input id="profileName" name="name" type="text" maxlength="24" placeholder="Dein Name" required><button type="submit" class="btn btn-primary btn-full">Speichern</button><div id="guestAccountActions" class="account-actions"><button type="button" class="btn btn-white" id="guestRegister">Jetzt registrieren</button><button type="button" class="btn btn-white" id="guestLogin">Anmelden</button></div><div id="accountActions" class="account-actions hidden"><button type="button" class="btn btn-white" id="logoutAccount">Abmelden</button><button type="button" class="btn btn-outline-danger" id="deleteAccount">Konto löschen</button></div></form></dialog>
+
+  <dialog id="entryDialog" class="app-dialog account-choice-dialog" aria-labelledby="entryTitle"><div class="dialog-content">
+    <button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button>
+    <div class="dialog-emoji">🎮</div><h2 id="entryTitle">Willkommen bei BidBattle!</h2>
+    <p>Du kannst ohne Konto spielen oder dein Profil dauerhaft speichern. Alle Modi sind kostenlos.</p>
+    <div class="entry-options"><button type="button" class="entry-option" id="chooseGuest"><b>⚡ Als Gast spielen</b><small>Sofort loslegen – ohne Registrierung</small></button>
+    <button type="button" class="entry-option" id="chooseRegister"><b>👤 Kostenlos registrieren</b><small>Profil dauerhaft speichern</small></button></div>
+    <button type="button" class="btn btn-white btn-full" id="chooseLogin">Ich habe schon ein Konto → Anmelden</button>
+  </div></dialog>
+  <dialog id="accountDialog" class="app-dialog" aria-labelledby="accountHeading"><form id="accountForm" class="dialog-content">
+    <button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button><div class="dialog-emoji">👤</div><h2 id="accountHeading">Kostenloses Konto erstellen</h2>
+    <p>Deine Spielmodi bleiben kostenlos. E-Mail-Adressen werden nicht öffentlich angezeigt.</p>
+    <div id="accountNameWrap"><label for="accountName">Spielername</label><input id="accountName" maxlength="24" autocomplete="nickname" required placeholder="Dein Spielername"></div>
+    <label for="accountEmail">E-Mail-Adresse</label><input id="accountEmail" type="email" autocomplete="email" maxlength="180" required placeholder="name@beispiel.de">
+    <label for="accountPassword">Passwort (mindestens 10 Zeichen)</label><input id="accountPassword" type="password" autocomplete="current-password" minlength="10" maxlength="128" required>
+    <button id="authSubmit" type="submit" class="btn btn-primary btn-full">Registrieren</button>
+    <button id="authSwitch" type="button" class="btn btn-white btn-full">Anmelden / Registrieren wechseln</button>
+    <p class="dialog-note">Wichtig: Der Prototyp hat noch keine E-Mail-Bestätigung oder Passwort-Zurücksetzen-Funktion.</p>
+  </form></dialog>
+  <dialog id="collectionDialog" class="app-dialog collection-dialog" aria-labelledby="collectionTitle"><div class="dialog-content">
+    <button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button>
+    <h2 id="collectionTitle">Item</h2><p id="collectionOwner"></p><div class="collection-description" id="collectionDescription"></div>
+    <button type="button" class="btn btn-white btn-full" data-close>Zur Auktion zurück</button>
+  </div></dialog>
 </body>
 </html>
