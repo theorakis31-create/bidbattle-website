@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 270" width="260" height="270" aria-hidden="true">
+<defs>
+<linearGradient id="top" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff9ff"/><stop offset="1" stop-color="#e9d3ff"/></linearGradient>
+<linearGradient id="left" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e3c9ff"/><stop offset="1" stop-color="#9e6de9"/></linearGradient>
+<linearGradient id="right" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#bd93fa"/><stop offset="1" stop-color="#7656c5"/></linearGradient>
+<radialGradient id="pip"><stop stop-color="#572e96"/><stop offset="1" stop-color="#482079"/></radialGradient>
+</defs>
+<ellipse cx="130" cy="240" rx="85" ry="19" fill="#775ac2" opacity=".20"/>
+<!-- Three faces of a standard d6: top 1, left 2, right 3; opposites 1-6, 2-5, 3-4 -->
+<path d="M130 15L220 61L130 109L40 61Z" fill="url(#top)" stroke="#eee4ff" stroke-width="4" stroke-linejoin="round"/>
+<path d="M40 61L130 109V219L40 172Z" fill="url(#left)" stroke="#e6d6ff" stroke-width="4" stroke-linejoin="round"/>
+<path d="M130 109L220 61V172L130 219Z" fill="url(#right)" stroke="#e6d6ff" stroke-width="4" stroke-linejoin="round"/>
+<!-- One dot on top -->
+<ellipse cx="130" cy="63" rx="13" ry="8" fill="url(#pip)"/>
+<!-- Two dots on left face -->
+<ellipse cx="66" cy="102" rx="9" ry="12" transform="rotate(-25 66 102)" fill="url(#pip)"/>
+<ellipse cx="105" cy="179" rx="9" ry="12" transform="rotate(-25 105 179)" fill="url(#pip)"/>
+<!-- Three dots right face -->
+<ellipse cx="184" cy="103" rx="9" ry="12" transform="rotate(25 184 103)" fill="url(#pip)"/>
+<ellipse cx="171" cy="144" rx="9" ry="12" transform="rotate(25 171 144)" fill="url(#pip)"/>
+<ellipse cx="150" cy="185" rx="9" ry="12" transform="rotate(25 150 185)" fill="url(#pip)"/>
+<path d="M50 68v98M138 114v93" stroke="white" stroke-opacity=".40" stroke-width="4" stroke-linecap="round"/>
+<path d="M45 57l85-43 84 43" fill="none" stroke="white" stroke-opacity=".8" stroke-width="3"/>
+</svg>

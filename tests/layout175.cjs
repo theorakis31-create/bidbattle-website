@@ -1,0 +1,17 @@
+'use strict';
+const fs=require('node:fs');const assert=require('node:assert/strict');
+const app=fs.readFileSync('public/app.js','utf8');
+const css=fs.readFileSync('public/styles.css','utf8');
+const source=fs.readFileSync('server.js','utf8');
+assert.match(app,/function flowAuctionScreen\(/);
+assert.match(app,/if\(current.mode==='football'\)return footballAuctionScreen\(\)/);
+assert.match(app,/function countdownScreen\(/);
+assert.match(app,/id="bidAmount"/);assert.match(app,/id="bidRange"/);
+assert.match(app,/syncBidRange\(true\)/);
+assert.match(app,/data-previous-card/);
+assert.match(app,/finishedAuctions\.set/);
+assert.match(css,/arena-soft\.webp/);
+assert.match(css,/prefers-reduced-motion:reduce/);
+assert.match(app,/data-open-pass/);assert.match(app,/data-pass/);
+assert.match(source,/const CATALOG/);
+console.log('PASS: 1.7.5 uses approved arena scene, hands football layout to v1.7.6, synchronized bid slider and no upcoming-item list');

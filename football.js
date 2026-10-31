@@ -157,23 +157,171 @@ Jonathan David|83|🇨🇦|
 Loïs Openda|82|🇧🇪|
 Rasmus Højlund|81|🇩🇰|
 `);
+// Additional verified real-world names. Ratings below are invented BidBattle balance values,
+// never official EA FC values. New names are appended to preserve existing IDs.
+register('GK','GK',`
+Gregor Kobel|86|🇨🇭|
+Diogo Costa|85|🇵🇹|
+Unai Simón|85|🇪🇸|
+Giorgi Mamardashvili|84|🇬🇪|
+Lucas Chevalier|83|🇫🇷|
+Bart Verbruggen|82|🇳🇱|
+Nick Pope|82|🇬🇧|
+Matz Sels|82|🇧🇪|
+André Onana|81|🇨🇲|
+Péter Gulácsi|81|🇭🇺|
+Joan García|84|🇪🇸|
+Dean Henderson|81|🇬🇧|
+Lukáš Hrádecký|81|🇫🇮|
+Álex Remiro|82|🇪🇸|
+`);
+register('DEF','CB',`
+Pau Cubarsí|85|🇪🇸|
+Dean Huijsen|84|🇪🇸|
+Marc Guéhi|83|🇬🇧|
+Murillo|83|🇧🇷|Murillo (footballer, born 2002)
+Cristian Romero|85|🇦🇷|
+Micky van de Ven|85|🇳🇱|
+Jarrad Branthwaite|82|🇬🇧|
+Wesley Fofana|82|🇫🇷|
+Bremer|85|🇧🇷|Bremer (footballer)
+Federico Gatti|81|🇮🇹|
+Lucas Hernández|82|🇫🇷|
+Leny Yoro|82|🇫🇷|
+Jorrel Hato|82|🇳🇱|
+Willian Pacho|85|🇪🇨|
+Robin Le Normand|83|🇪🇸|
+Edmond Tapsoba|84|🇧🇫|
+Castello Lukeba|82|🇫🇷|
+Matthias Ginter|82|🇩🇪|
+Luka Vušković|80|🇭🇷|
+Dan Burn|80|🇬🇧|
+`);
+register('DEF','RB',`
+Tino Livramento|83|🇬🇧|
+Reece James|84|🇬🇧|
+Malo Gusto|82|🇫🇷|
+Ben White|83|🇬🇧|
+Denzel Dumfries|84|🇳🇱|
+Giovanni Di Lorenzo|82|🇮🇹|
+Kyle Walker|80|🇬🇧|
+Kieran Trippier|80|🇬🇧|
+Marcos Llorente|83|🇪🇸|
+Yan Couto|80|🇧🇷|
+`);
+register('DEF','LB',`
+Miloš Kerkez|83|🇭🇺|
+Patrick Dorgu|80|🇩🇰|
+Riccardo Calafiori|83|🇮🇹|
+Destiny Udogie|83|🇮🇹|
+Marc Cucurella|84|🇪🇸|
+Alejandro Grimaldo|85|🇪🇸|
+Antonee Robinson|82|🇺🇸|
+Rayan Aït-Nouri|83|🇩🇿|
+Miguel Gutiérrez|81|🇪🇸|
+Maxim De Cuyper|80|🇧🇪|
+`);
+register('MID','CM',`
+Angelo Stiller|84|🇩🇪|
+Aleksandar Pavlović|83|🇩🇪|
+Tijjani Reijnders|86|🇳🇱|
+Exequiel Palacios|82|🇦🇷|
+Sandro Tonali|85|🇮🇹|
+Adam Wharton|82|🇬🇧|
+Kobbie Mainoo|81|🇬🇧|
+Manuel Locatelli|82|🇮🇹|
+Ryan Gravenberch|85|🇳🇱|
+Rodrigo De Paul|83|🇦🇷|
+Yunus Musah|80|🇺🇸|
+Morten Hjulmand|83|🇩🇰|
+John McGinn|82|🏴|
+Pascal Groß|81|🇩🇪|
+Dominik Szoboszlai|85|🇭🇺|
+Morgan Gibbs-White|83|🇬🇧|
+Khephren Thuram|82|🇫🇷|
+Hakan Çalhanoğlu|85|🇹🇷|
+Rico Lewis|80|🇬🇧|
+`);
+register('MID','DM',`
+Moisés Caicedo|87|🇪🇨|
+Amadou Onana|83|🇧🇪|
+João Palhinha|82|🇵🇹|
+Youssouf Fofana|82|🇫🇷|
+Mats Wieffer|81|🇳🇱|
+`);
+register('MID','AM',`
+Arda Güler|85|🇹🇷|
+Michael Olise|89|🇫🇷|
+Xavi Simons|85|🇳🇱|
+Rayan Cherki|86|🇫🇷|
+Morgan Rogers|85|🇬🇧|
+Isco|83|🇪🇸|
+Dani Olmo|85|🇪🇸|
+Eberechi Eze|85|🇬🇧|
+Phil Foden|86|🇬🇧|
+James Maddison|82|🇬🇧|
+`);
+register('ATT','RW',`
+Christian Pulisic|85|🇺🇸|
+Leroy Sané|84|🇩🇪|
+Takefusa Kubo|83|🇯🇵|
+Savinho|82|🇧🇷|
+Francisco Conceição|82|🇵🇹|
+Pedro Neto|83|🇵🇹|
+Noni Madueke|82|🇬🇧|
+Antoine Semenyo|83|🇬🇭|
+Riyad Mahrez|81|🇩🇿|
+`);
+register('ATT','LW',`
+Alejandro Garnacho|82|🇦🇷|
+Kaoru Mitoma|82|🇯🇵|
+Jérémy Doku|84|🇧🇪|
+Jamie Gittens|81|🇬🇧|
+Kenan Yıldız|85|🇹🇷|
+Sadio Mané|82|🇸🇳|
+Bradley Barcola|85|🇫🇷|
+Cody Gakpo|83|🇳🇱|
+Désiré Doué|86|🇫🇷|
+Ansu Fati|80|🇪🇸|
+`);
+register('ATT','ST',`
+Alexander Sørloth|83|🇳🇴|
+Benjamin Šeško|83|🇸🇮|
+Ollie Watkins|84|🇬🇧|
+Liam Delap|80|🇬🇧|
+Hugo Ekitiké|84|🇫🇷|
+Omar Marmoush|84|🇪🇬|
+Nicolas Jackson|81|🇸🇳|
+Dominic Solanke|82|🇬🇧|
+Serhou Guirassy|85|🇬🇳|
+Dušan Vlahović|83|🇷🇸|
+Matheus Cunha|84|🇧🇷|
+Mateo Retegui|83|🇮🇹|
+João Pedro|84|🇧🇷|João Pedro (footballer, born 2001)
+Patrik Schick|83|🇨🇿|
+Nick Woltemade|83|🇩🇪|
+Santiago Giménez|81|🇲🇽|
+Viktor Boniface|81|🇳🇬|
+Romelu Lukaku|82|🇧🇪|
+`);
 const byId=new Map(catalog.map(x=>[x.id,x]));
 function shuffle(input,crypto){const arr=[...input];for(let i=arr.length-1;i>0;i--){const j=crypto.randomInt(i+1);[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
-function createDeck(crypto){
- // 44 offers per match, randomly chosen from a much larger pool. All positions
- // can arrive at any point in the draft, rather than GK -> DEF -> MID -> ATT.
- const chosen=[...shuffle(catalog.filter(p=>p.group==='GK'),crypto).slice(0,5),...shuffle(catalog.filter(p=>p.role==='RB'),crypto).slice(0,3),...shuffle(catalog.filter(p=>p.role==='LB'),crypto).slice(0,3),...shuffle(catalog.filter(p=>p.role==='CB'),crypto).slice(0,7),...shuffle(catalog.filter(p=>p.group==='MID'),crypto).slice(0,13),...shuffle(catalog.filter(p=>p.group==='ATT'),crypto).slice(0,13)];
- // Mix the order but avoid a match with no GK until the very end.
- const groups={GK:[],DEF:[],MID:[],ATT:[]};
- for(const x of chosen)groups[x.group].push(x);
- for(const key of Object.keys(groups))groups[key]=shuffle(groups[key],crypto);
- const deck=[];
- while(deck.length<chosen.length){
-   const valid=Object.keys(groups).filter(g=>groups[g].length && !deck.slice(-3).every(x=>x?.group===g));
-   const candidates=valid.length?valid:Object.keys(groups).filter(g=>groups[g].length);
-   const bucket=candidates[crypto.randomInt(candidates.length)];deck.push(groups[bucket].pop());
- }
- return deck;
+function createDeck(crypto, avoidIds=new Set()) {
+  // Keep every role well represented, while avoiding names seen in recent matches.
+  // If a position is short of fresh candidates, fall back to the complete pool.
+  const pick=(pool,n)=>{
+    const fresh=shuffle(pool.filter(p=>!avoidIds.has(p.id)),crypto);
+    const stale=shuffle(pool.filter(p=>avoidIds.has(p.id)),crypto);
+    return [...fresh,...stale].slice(0,n);
+  };
+  const chosen=[...pick(catalog.filter(p=>p.group==='GK'),5),
+    ...pick(catalog.filter(p=>p.role==='RB'),3),
+    ...pick(catalog.filter(p=>p.role==='LB'),3),
+    ...pick(catalog.filter(p=>p.role==='CB'),7),
+    ...pick(catalog.filter(p=>p.group==='MID'),13),
+    ...pick(catalog.filter(p=>p.group==='ATT'),13)];
+  // Shuffle all 44 offers. A GK can appear early, middle or late.
+  return shuffle(chosen,crypto);
 }
 // Maximum bipartite match ensures every purchased player can ultimately occupy
 // a legal 4-3-3 slot, regardless of the manual current lineup arrangement.

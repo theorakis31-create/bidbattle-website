@@ -3,18 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#e9edff">
   <meta name="description" content="BidBattle: Fordere Freunde heraus, biete mit virtuellem Spielgeld auf kreative Items und entscheide, wer das bessere Ergebnis baut.">
-  <title>BidBattle – Bieten. Kreieren. Gewinnen.</title>
+  <title>BidBattle – Wer bietet besser, wer gewinnt?</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css">
-  <script src="/app.js" defer></script>
+  <link rel="stylesheet" href="/styles.css?v=1.8-preview2">
+  <script src="/app.js?v=1.8-preview2" defer></script>
 </head>
 <body>
   <div id="toast" role="status" aria-live="polite"></div><div id="connectionBanner" class="connection-banner hidden" role="status">📡 Verbindung unterbrochen – wir verbinden dich automatisch erneut …</div>
   <header class="site-header">
     <div class="container header-inner">
       <a class="brand" href="#home" aria-label="BidBattle Startseite" id="homeLogo"><span class="brand-crown" aria-hidden="true">♛</span><span>Bid<span class="brand-gradient">Battle</span></span></a>
+      <nav class="site-nav" aria-label="Hauptnavigation">
+        <a class="site-nav-link active" href="#home" id="navHome">⌂ <span>Startseite</span></a>
+        <a class="site-nav-link" href="#modes" id="navModes">🎮 <span>Spielmodi</span></a>
+      </nav>
       <div class="header-actions">
         <button type="button" class="btn btn-text" id="profileBtn"><span class="profile-icon" id="headerAvatar">🙂</span><span id="profileLabel">Mein Name</span></button>
         <button type="button" class="btn btn-primary header-cta" data-create>Jetzt spielen <span aria-hidden="true">↗</span></button>
@@ -26,39 +30,32 @@
     <section id="home" class="hero-section">
       <div class="container hero-layout">
         <div class="hero-copy">
-          <p class="eyebrow"><span class="eyebrow-dot"></span> BIETEN · KREIEREN · GEWINNEN</p>
-          <h1>Stelle dich der nächsten <span class="title-highlight">Challenge!</span></h1>
-          <p class="hero-description">Fordere deine Freunde heraus, sichere dir die besten Items und erschaffe etwas Einzigartiges. <strong>Wer baut das bessere Ergebnis?</strong></p>
+          <p class="eyebrow"><span class="eyebrow-crown" aria-hidden="true">👑</span> BIETEN · KREIEREN · GEWINNEN</p>
+          <h1>Wer bietet besser,<br><span class="title-highlight">wer gewinnt?</span></h1>
+          <p class="hero-description">Spiele mit deinen Freunden, entdecke einzigartige Spielmodi und zeige, wer die besten Items ersteigert.</p>
           <div class="hero-buttons">
-            <button type="button" class="btn btn-primary btn-xl" data-create>Jetzt spielen <span class="btn-arrow">→</span></button>
-            <button type="button" class="btn btn-white btn-xl" data-join>Spiel beitreten <span class="btn-arrow">↗</span></button>
+            <button type="button" class="btn btn-primary btn-xl" data-create><span aria-hidden="true">▷</span> Jetzt spielen <span class="btn-arrow" aria-hidden="true">→</span></button>
+            <button type="button" class="btn btn-white btn-xl" data-join><span aria-hidden="true">👥</span> Spiel beitreten</button>
           </div>
-          <div class="hero-proof">
-            <div class="mini-avatars" aria-hidden="true"><span>😎</span><span>🙂</span><span>🤩</span></div>
-            <div><strong>Gemeinsam mehr Spaß</strong><small>Spiele direkt mit deinen Freunden – kostenlos.</small></div>
+          <div class="hero-proof" aria-label="BidBattle Vorteile">
+            <div class="proof-item"><span class="proof-icon">⚡</span><span><strong>Mehrere Spielmodi</strong><small>Für jeden Geschmack</small></span></div>
+            <div class="proof-item"><span class="proof-icon purple">👥</span><span><strong>Spiele mit Freunden</strong><small>Einfach &amp; kostenlos</small></span></div>
+            <div class="proof-item"><span class="proof-icon gold">🏆</span><span><strong>Spannende Duelle</strong><small>Bieten und gewinnen</small></span></div>
           </div>
         </div>
-        <div class="hero-art" role="img" aria-label="Bunter Pokal mit Burger, Fußball, Spielkarten und Sternen">
-          <div class="art-glow art-glow-left"></div><div class="art-glow art-glow-right"></div>
-          <span class="art-star star-one">✦</span><span class="art-star star-two">✳</span><span class="art-star star-three">✦</span>
-          <div class="art-bubble bubble-one">⚽</div><div class="art-bubble bubble-two">🍔</div>
-          <div class="art-card art-card-left"><span>💜</span><small>SUPERPOWER</small></div>
-          <div class="trophy-art"><div class="trophy-handles"></div><div class="trophy-cup"><span>★</span></div><div class="trophy-neck"></div><div class="trophy-base"></div></div>
-          <div class="art-card art-card-right"><span>🎲</span><small>CHALLENGE</small></div>
-          <div class="art-pedestal"></div>
-          <div class="art-spark spark-one">✦</div><div class="art-spark spark-two">✦</div><div class="art-spark spark-three">✳</div>
-          <div class="art-caption">Wer gewinnt? <span>👀</span></div>
+        <div class="hero-art hero-art-173 bb-v18-hero" role="img" aria-label="Hochwertiger goldener BidBattle-Pokal mit Controller links, Würfel rechts und BidBattle-Schriftzug auf dem Sockel">
+          <img class="bb-v18-hero-image" src="/assets/hero-trophy-integrated.webp" alt="" width="811" height="469" decoding="async" fetchpriority="high">
         </div>
       </div>
     </section>
 
     <section id="modes" class="modes-section container">
-      <div class="section-heading"><div><div class="heading-label"><span class="section-emoji">🎮</span><h2>Wähle deinen Spielmodus</h2></div><p>Verschiedene Welten, endlose Möglichkeiten.</p></div><span class="mode-hint">4 Modi · 2 Auktionsarten ✨</span></div>
+      <div class="section-heading"><div><div class="heading-label"><span class="section-emoji">🎮</span><div><span class="section-kicker">SPIELMODI</span><h2>Wähle deinen Spielmodus</h2></div></div><p>Verschiedene Welten, endlose Möglichkeiten. Jeder Modus ein neues Erlebnis.</p></div><span class="mode-hint">👥 &nbsp; 4 Modi · 2 Auktionsarten</span></div>
       <div class="modes-grid">
-        <button class="mode-card football" type="button" data-playmode="football"><span class="mode-art"><span class="shape spark-mini">✳</span><span class="mode-illustration">⚽</span><span class="shape confetti-mini">✦</span></span><span class="mode-info"><span><strong>Football Draft</strong><small>Startelf oder Bid Your Player</small></span><span class="mode-arrow">→</span></span><span class="mode-tag">🔥 Beliebtester Modus</span></button>
-        <button class="mode-card food" type="button" data-playmode="food"><span class="mode-art"><span class="shape spark-mini">✳</span><span class="mode-illustration">🍔</span><span class="shape confetti-mini">✦</span></span><span class="mode-info"><span><strong>Food Battle</strong><small>Baue den ultimativen Burger!</small></span><span class="mode-arrow">→</span></span></button>
-        <button class="mode-card superhero" type="button" data-playmode="hero"><span class="mode-art"><span class="shape spark-mini">✦</span><span class="mode-illustration">🦸</span><span class="shape confetti-mini">✳</span></span><span class="mode-info"><span><strong>Superhero Showdown</strong><small>Baue den stärksten Helden!</small></span><span class="mode-arrow">→</span></span></button>
-        <button class="mode-card random" type="button" data-playmode="random"><span class="mode-art"><span class="shape spark-mini">✳</span><span class="mode-illustration">🎲</span><span class="shape confetti-mini">✦</span></span><span class="mode-info"><span><strong>Random Battle</strong><small>Überraschende Challenges!</small></span><span class="mode-arrow">→</span></span></button>
+        <button class="mode-card football" type="button" data-playmode="football"><span class="mode-art bb-emoji-art" aria-hidden="true"><span class="bb-mode-orbit"></span><span class="bb-mode-emoji">⚽</span><span class="bb-mode-sparkle bb-sparkle-one">✧</span><span class="bb-mode-sparkle bb-sparkle-two">✦</span></span><span class="mode-info"><span><strong>Football Draft</strong><small>Ersteigere echte Fußballer für dein Team.</small></span><span class="mode-arrow">→</span></span><span class="mode-tags"><span>Strategie</span><span>Auktion</span><span>11 Spieler</span></span><span class="mode-tag">🏆 Beliebtester Modus</span></button>
+        <button class="mode-card food" type="button" data-playmode="food"><span class="mode-art bb-emoji-art" aria-hidden="true"><span class="bb-mode-orbit"></span><span class="bb-mode-emoji">🍔</span><span class="bb-mode-sparkle bb-sparkle-one">✧</span><span class="bb-mode-sparkle bb-sparkle-two">✦</span></span><span class="mode-info"><span><strong>Food Battle</strong><small>Ersteigere Zutaten für den besten Burger.</small></span><span class="mode-arrow">→</span></span><span class="mode-tags"><span>Kreativ</span><span>Auktion</span><span>Fun</span></span></button>
+        <button class="mode-card superhero" type="button" data-playmode="hero"><span class="mode-art bb-emoji-art" aria-hidden="true"><span class="bb-mode-orbit"></span><span class="bb-mode-emoji">🦸</span><span class="bb-mode-sparkle bb-sparkle-one">✧</span><span class="bb-mode-sparkle bb-sparkle-two">✦</span></span><span class="mode-info"><span><strong>Superhero Showdown</strong><small>Ersteigere Kräfte für deinen Superhelden.</small></span><span class="mode-arrow">→</span></span><span class="mode-tags"><span>Action</span><span>Auktion</span><span>Einzigartig</span></span></button>
+        <button class="mode-card random" type="button" data-playmode="random"><span class="mode-art bb-emoji-art" aria-hidden="true"><span class="bb-mode-orbit"></span><img class="bb-mode-dice" src="/assets/home-mode-die.svg" alt="" width="180" height="160"><span class="bb-mode-sparkle bb-sparkle-one">✧</span><span class="bb-mode-sparkle bb-sparkle-two">✦</span></span><span class="mode-info"><span><strong>Random Battle</strong><small>Überraschende Challenges für eure Duelle.</small></span><span class="mode-arrow">→</span></span><span class="mode-tags"><span>Überraschung</span><span>Auktion</span><span>Spaß</span></span></button>
       </div>
     </section>
 
@@ -71,22 +68,56 @@
 
   <main id="gameView" class="game-view hidden" aria-live="polite"><div class="container"><div class="game-topbar"><button type="button" id="exitGame" class="back-button">← Zur Startseite</button><span class="play-money-hint">🪙 Nur virtuelles Spielgeld</span></div><div id="gameContent"></div></div></main>
 
-  <footer class="site-footer"><div class="container footer-content"><div><strong>♛ Bid<span class="brand-gradient">Battle</span></strong><p>Bieten. Kreieren. Gewinnen.</p></div><div><small>Ein kostenloses Freundes-Spiel. Keine Echtgeld-Einsätze, keine Preise.</small><span>© 2026 BidBattle · Prototyp v1.7</span></div></div></footer>
+  <footer class="site-footer"><div class="container footer-content"><div><strong>♛ Bid<span class="brand-gradient">Battle</span></strong><p>Bieten. Kreieren. Gewinnen.</p></div><div><small>Ein kostenloses Freundes-Spiel. Keine Echtgeld-Einsätze, keine Preise.</small><span>© 2026 BidBattle · Prototyp v1.7.9.1</span></div></div></footer>
 
   <dialog id="footballChoiceDialog" class="app-dialog football-choice-dialog" aria-labelledby="footballChoiceTitle">
     <div class="dialog-content"><button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button>
       <div class="dialog-emoji">⚽</div><h2 id="footballChoiceTitle">Wähle deinen Football-Modus</h2>
       <p>Zwei Arten zu draften – ihr entscheidet vor dem Duell.</p>
       <div class="football-variant-grid">
-        <button type="button" class="football-variant-card" data-football-choice="startelf"><span class="variant-symbol">🏟️</span><strong>Startelf</strong><small>Ersteigere bis zu 11 Spieler und verteile sie selbst im 4-3-3-System.</small><span class="variant-footer">50 € Budget · 44 Auktionen <b>→</b></span></button>
+        <button type="button" class="football-variant-card" data-football-choice="startelf"><span class="variant-symbol">🏟️</span><strong>Startelf</strong><small>Ersteigere bis zu 11 Spieler und verteile sie selbst im 4-3-3-System.</small><span class="variant-footer">50 € Budget · 44 Auktionen + 11er-Auffüllung <b>→</b></span></button>
         <button type="button" class="football-variant-card" data-football-choice="byp"><span class="variant-symbol">🃏</span><strong>Bid Your Player</strong><small>Ersteigere deine 3, 4 oder 5 Lieblingsspieler, ganz ohne Aufstellung.</small><span class="variant-footer">20–50 € Budget · Privat abstimmen <b>→</b></span></button>
       </div>
     </div>
   </dialog>
-  <dialog id="createDialog" class="app-dialog"><form id="createForm" class="dialog-content"><button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button><div class="dialog-emoji">🏆</div><h2>Neues Duell starten</h2><p>Lege dein Spiel fest und lade deinen Freund ein.</p><label for="createName">Dein Spielername</label><input type="text" id="createName" name="name" maxlength="24" placeholder="z. B. Alex" autocomplete="nickname" required><label for="createMode">Spielmodus</label><select id="createMode" name="mode"><option value="football">⚽ Football Draft</option><option value="food">🍔 Food Battle</option><option value="hero">🦸 Superhero Showdown</option><option value="random">🎲 Random Battle</option></select><div id="footballVariantFields" class="football-form-fields hidden"><label for="createFootballVariant">Fußball-Variante</label><select id="createFootballVariant" name="footballVariant"><option value="startelf">🏟️ Startelf – 11er-Aufstellung</option><option value="byp">🃏 Bid Your Player – 3 bis 5 Spieler</option></select><div id="playerLimitFields" class="hidden"><label for="createPlayerLimit">Spieler pro Person</label><select id="createPlayerLimit" name="playerLimit"><option value="3">3 Spieler</option><option value="4" selected>4 Spieler (Klassiker)</option><option value="5">5 Spieler</option></select></div></div><label for="createBudget">Virtuelles Startbudget</label><select id="createBudget" name="budget"><option value="20">20 € Spielgeld (Klassiker)</option><option value="10">10 € Spielgeld</option><option value="30">30 € Spielgeld</option><option value="50">50 € Spielgeld</option></select><p id="footballModeHint" class="dialog-note hidden">⚽ Startelf: 44 wechselnde Angebote und bis zu 11 Spieler. Bei Bid Your Player wählst du 3–5 Spieler, ganz ohne feste Positionen. Nur gewonnene Auktionen zählen.</p><label for="createTimeLimit">Zeit pro Gebot</label><select id="createTimeLimit" name="timeLimit"><option value="15" selected>15 Sekunden (Standard)</option><option value="10">10 Sekunden (Extrem)</option><option value="30">30 Sekunden</option><option value="60">60 Sekunden (entspannt)</option><option value="0">Ohne Zeitlimit</option></select><div class="auction-choice-section"><p class="auction-choice-heading">Wie möchtet ihr bieten?</p><div class="auction-choice-grid">
+  <dialog id="createDialog" class="app-dialog bb-onboard-dialog" aria-labelledby="bbOnboardTitle">
+    <form id="createForm" class="dialog-content bb-onboard-content">
+      <button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button>
+      <div class="bb-onboard-top"><span class="bb-onboard-logo">♛ <b>Bid<span>Battle</span></b></span><span class="bb-onboard-topnote">DEIN DUELL BEGINNT HIER</span></div>
+      <div class="bb-onboard-steps" aria-label="Fortschritt"><span class="bb-ob-step is-active" data-ob-step="1"><b>1</b> Profil</span><span class="bb-ob-connector"></span><span class="bb-ob-step" data-ob-step="2"><b>2</b> Einstellungen</span><span class="bb-ob-connector"></span><span class="bb-ob-step"><b>3</b> Freunde einladen</span></div>
+      <div class="bb-onboard-layout">
+        <aside class="bb-onboard-aside" aria-label="Gewählter Spielmodus">
+          <div class="bb-onboard-art"><span id="bbOnboardModeArt" aria-hidden="true">⚽</span></div>
+          <span class="bb-onboard-aside-kicker">DEIN SPIELMODUS</span>
+          <h3 id="bbOnboardModeTitle">Football Draft</h3>
+          <p id="bbOnboardModeCaption">Biete auf deine Favoriten und tritt gegen Freunde an.</p>
+          <div class="bb-onboard-aside-chips"><span>1 GEGEN 1</span><span>SPIELGELD</span><span>KOSTENLOS</span></div>
+          <p class="bb-onboard-aside-help">Nach dem Erstellen landest du in der Lobby und kannst Freunde einladen.</p>
+        </aside>
+        <div class="bb-onboard-main">
+          <section id="bbCreateProfileStep" class="bb-onboard-step-pane">
+            <span class="bb-onboard-kicker">SCHRITT 1 · DEIN PROFIL</span>
+            <h2 id="bbOnboardTitle">Dein Auftritt bei BidBattle</h2>
+            <p>Gib dir einen Namen und wähle einen Avatar, der dich im Duell begleitet.</p>
+            <label for="createName">Dein Spielername</label>
+            <input type="text" id="createName" name="name" maxlength="24" placeholder="z. B. Theo" autocomplete="nickname" required>
+            <div class="bb-ob-selected-preview" id="bbObSelectedPreview" aria-live="polite"></div>
+            <button type="button" class="btn btn-primary btn-full bb-onboard-next" id="bbCreateContinue">Weiter zu den Einstellungen →</button>
+          </section>
+          <section id="bbCreateSettingsStep" class="bb-onboard-step-pane hidden">
+            <span class="bb-onboard-kicker">SCHRITT 2 · SPIELREGELN</span>
+            <h2>Dein Duell einstellen</h2><p>Wähle die Regeln. Du kannst sie später in der Lobby nochmals ändern.</p>
+            <div id="bbCreateModeChooser" class="bb-onboard-mode-chooser"><label for="createMode">Spielmodus</label><select id="createMode" name="mode"><option value="football">⚽ Football Draft</option><option value="food">🍔 Food Battle</option><option value="hero">🦸 Superhero Showdown</option><option value="random">🎲 Random Battle</option></select></div>
+            <div id="footballVariantFields" class="football-form-fields hidden"><label for="createFootballVariant">Fußball-Variante</label><select id="createFootballVariant" name="footballVariant"><option value="startelf">🏟️ Startelf – 11er-Aufstellung</option><option value="byp">🃏 Bid Your Player – 3 bis 5 Spieler</option></select><div id="playerLimitFields" class="hidden"><label for="createPlayerLimit">Spieler pro Person</label><select id="createPlayerLimit" name="playerLimit"><option value="3">3 Spieler</option><option value="4" selected>4 Spieler (Klassiker)</option><option value="5">5 Spieler</option></select></div></div><label for="createBudget">Virtuelles Startbudget</label><select id="createBudget" name="budget"><option value="20">20 € Spielgeld (Klassiker)</option><option value="10">10 € Spielgeld</option><option value="30">30 € Spielgeld</option><option value="50">50 € Spielgeld</option></select><p id="footballModeHint" class="dialog-note hidden">⚽ Startelf: 44 wechselnde Angebote, danach werden freie Positionen automatisch mit Zufallskarten aufgefüllt. Wer mehr verpasst, bekommt seltener Stars. Bid Your Player: 3–5 Spieler, ohne feste Positionen.</p><label for="createTimeLimit">Zeit pro Gebot</label><select id="createTimeLimit" name="timeLimit"><option value="15" selected>15 Sekunden (Standard)</option><option value="10">10 Sekunden (Extrem)</option><option value="30">30 Sekunden</option><option value="60">60 Sekunden (entspannt)</option><option value="0">Ohne Zeitlimit</option></select><div class="auction-choice-section"><p class="auction-choice-heading">Wie möchtet ihr bieten?</p><div class="auction-choice-grid">
 <label class="auction-choice"><input type="radio" name="auctionType" value="sealed" checked><span class="auction-choice-body"><b>🙈 Blind bieten</b><small>Beide bieten geheim. Das höchste Gebot gewinnt. Bei Gleichstand gibt es ein Stechen.</small></span></label>
 <label class="auction-choice"><input type="radio" name="auctionType" value="open"><span class="auction-choice-body"><b>👀 Offen überbieten</b><small>Ihr seid abwechselnd dran und seht das aktuelle Gebot. Wer zuletzt überboten hat, gewinnt, sobald der andere passt.</small></span></label>
-</div></div><p class="dialog-note">💡 Die Beträge sind nur Spielpunkte, kein echtes Geld.</p><button type="submit" class="btn btn-primary btn-full" id="createSubmit">Spiel erstellen →</button></form></dialog>
+</div></div><p class="dialog-note">💡 Die Beträge sind nur Spielpunkte, kein echtes Geld.</p>
+            <div class="bb-onboard-footer"><button type="button" class="btn btn-white" id="bbCreateBack">← Zurück</button><button type="submit" class="btn btn-primary" id="createSubmit">Spiel erstellen →</button></div>
+          </section>
+        </div>
+      </div>
+    </form>
+  </dialog>
   <dialog id="joinDialog" class="app-dialog"><form id="joinForm" class="dialog-content"><button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button><div class="dialog-emoji">👋</div><h2>Du bist eingeladen!</h2><p>Gib den sechsstelligen Code deines Freundes ein.</p><label for="joinName">Dein Spielername</label><input id="joinName" name="name" type="text" maxlength="24" autocomplete="nickname" placeholder="z. B. Sam" required><label for="joinCode">Einladungscode</label><input id="joinCode" name="code" class="code-input" type="text" maxlength="6" minlength="6" placeholder="ABC234" autocapitalize="characters" spellcheck="false" required><button type="submit" class="btn btn-primary btn-full" id="joinSubmit">Spiel beitreten →</button></form></dialog>
   <dialog id="profileDialog" class="app-dialog"><form id="profileForm" class="dialog-content"><button class="dialog-close" type="button" data-close aria-label="Schließen">✕</button><div class="dialog-emoji">🙂</div><h2>Dein Spielerprofil</h2><p>Wähle deinen Namen, Avatar und deine Farbe. Diese werden für neue Spiele vorgeschlagen. Als Gast kannst du sofort spielen. Mit einem Konto bleibt dein Profil gespeichert.</p><label for="profileName">Name</label><input id="profileName" name="name" type="text" maxlength="24" placeholder="Dein Name" required><button type="submit" class="btn btn-primary btn-full">Speichern</button><div id="guestAccountActions" class="account-actions"><button type="button" class="btn btn-white" id="guestRegister">Jetzt registrieren</button><button type="button" class="btn btn-white" id="guestLogin">Anmelden</button></div><div id="accountActions" class="account-actions hidden"><button type="button" class="btn btn-white" id="logoutAccount">Abmelden</button><button type="button" class="btn btn-outline-danger" id="deleteAccount">Konto löschen</button></div></form></dialog>
 

@@ -5,6 +5,7 @@
   const names = {food:'Food Battle',football:'Football Draft',hero:'Superhero Showdown',random:'Random Battle'};
   const variantNames={startelf:'Startelf',byp:'Bid Your Player'};
   const isShort=()=>current?.mode==='football'&&current.footballVariant==='byp';
+  const elite=card=>card?.rating>=88;
   const limit=()=>current?.playerLimit||11;
   const modeIcons = {food:'🍔',football:'⚽',hero:'🦸',random:'🎲'};
   let session = null;
@@ -13,6 +14,8 @@
   let toastTimer = null;
   let requestPending = false;
   let lastWinnerCelebrated = null;
+  let lastEliteCueKey = '';
+  let lastWinCueKey = '';
   let editorOpen = false;
   let countdownTicker=null;
   let account=null;
@@ -22,15 +25,27 @@
   let lastCountdownSecond=null;
   let soundEnabled=localStorage.getItem('bidbattle-sound')!=='off';
   let audioCtx=null;
-  const AVATARS = ['🙂','😎','🤩','🐼','🦊','🐯','🐱','🐸','🦄','🤖','👽','🐧'];
+  // Emoji-only avatar picker. Legacy avatar IDs remain readable for existing users.
+  const AVATAR_IDS = ['🙂','😎','🤩','🐼','🦊','🐯','🐱','🐸','🦄','🤖','👽','🐧'];
+  const LEGACY_AVATARS = {nova:'🙂',luna:'🙂',kai:'😎',roxy:'🤩',ace:'😎',milo:'🦊',juno:'🐱',zara:'🦄',rex:'🐯',ember:'🐸',shadow:'🤖',pixel:'👽'};
+  const AVATARS = [...AVATAR_IDS,...Object.keys(LEGACY_AVATARS)];
+  const emojiAvatar = v => LEGACY_AVATARS[v] || (AVATAR_IDS.includes(v) ? v : '🙂');
   const COLORS = ['lilac','blue','peach','mint','pink','yellow'];
   const photoCache = new Map();
-  const savedAvatar = () => AVATARS.includes(localStorage.getItem('bidbattle-avatar')) ? localStorage.getItem('bidbattle-avatar') : '🙂';
+  const finishedAuctions = new Map();
+  let lastScene = '';
+  let activePrevious = null;
+  const savedAvatar = () => emojiAvatar(localStorage.getItem('bidbattle-avatar'));
   const savedColor = () => COLORS.includes(localStorage.getItem('bidbattle-avatar-color')) ? localStorage.getItem('bidbattle-avatar-color') : 'lilac';
+  let pendingEntry=null;
+  let directModeSelected=false;
   let chosenAvatar = savedAvatar();
   let chosenColor = savedColor();
 
   const escape = value => String(value??'').replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const avatarContent = avatar => escape(emojiAvatar(avatar));
+  const avatarOptions = Object.fromEntries(AVATAR_IDS.map((v,i)=>[v,['Lächeln','Cool','Begeistert','Panda','Fuchs','Tiger','Katze','Frosch','Einhorn','Roboter','Alien','Pinguin'][i]]));
+  const initials = value => String(value||'').split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]?.toUpperCase()||'').join('') || '⚽';
   const savedName = () => account?.name||localStorage.getItem('bidbattle-name') || '';
   function notify(message) {const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3500);}
   function openDialog(id){renderPickers();const dialog=$(`#${id}`);if(!dialog.open)dialog.showModal();}
@@ -40,7 +55,7 @@
     localStorage.setItem('bidbattle-avatar',chosenAvatar);
     localStorage.setItem('bidbattle-avatar-color',chosenColor);
     $('#profileLabel').textContent=value.trim() || 'Mein Name';
-    $('#headerAvatar').textContent=chosenAvatar;
+    $('#headerAvatar').innerHTML=avatarContent(chosenAvatar);
     $('#headerAvatar').className=`profile-icon avatar-${chosenColor}`;
   }
   function renderPickers(){
@@ -48,9 +63,15 @@
       picker.querySelectorAll('[data-avatar-choice]').forEach(btn=>{const on=btn.dataset.avatarChoice===chosenAvatar;btn.classList.toggle('selected',on);btn.setAttribute('aria-pressed',String(on));});
       picker.querySelectorAll('[data-color-choice]').forEach(btn=>{const on=btn.dataset.colorChoice===chosenColor;btn.classList.toggle('selected',on);btn.setAttribute('aria-pressed',String(on));});
     });
+    renderOnboardingPreview();
+  }
+  function renderOnboardingPreview(){
+    const p=$('#bbObSelectedPreview');if(!p)return;
+    const name=$('#createName')?.value.trim()||'Dein Spielername';
+    p.innerHTML=`<span class="bb-ob-preview-avatar avatar-${chosenColor}">${avatarContent(chosenAvatar)}</span><span><strong>${escape(name)}</strong><small>Dein ausgewählter BidBattle-Avatar</small></span><span class="bb-ob-preview-check">✓</span>`;
   }
   function setupAvatarPickers(){
-    const html=`<div class="avatar-picker"><label>Wähle deinen Avatar</label><div class="avatar-options">${AVATARS.map(a=>`<button type="button" data-avatar-choice="${a}" title="Avatar ${a}" aria-label="Avatar ${a}">${a}</button>`).join('')}</div><label>Avatar-Farbe</label><div class="avatar-colors">${COLORS.map(c=>`<button type="button" data-color-choice="${c}" class="avatar-color avatar-${c}" aria-label="Farbe ${c}"></button>`).join('')}</div></div>`;
+    const html=`<div class="avatar-picker bb-avatar-picker"><label>Wähle deinen Avatar</label><div class="avatar-options">${AVATAR_IDS.map(a=>`<button type="button" data-avatar-choice="${a}" title="${avatarOptions[a]}" aria-label="Avatar ${avatarOptions[a]}">${avatarContent(a)}</button>`).join('')}</div><label>Deine Profilfarbe</label><div class="avatar-colors">${COLORS.map(c=>`<button type="button" data-color-choice="${c}" class="avatar-color avatar-${c}" aria-label="Farbe ${c}"></button>`).join('')}</div></div>`;
     ['#createName','#joinName','#profileName'].forEach(id=>$(id).insertAdjacentHTML('afterend',html));
     $$('[data-avatar-choice]').forEach(btn=>btn.addEventListener('click',()=>{chosenAvatar=btn.dataset.avatarChoice;renderPickers();}));
     $$('[data-color-choice]').forEach(btn=>btn.addEventListener('click',()=>{chosenColor=btn.dataset.colorChoice;renderPickers();}));
@@ -62,9 +83,31 @@
     cta.innerHTML=isGame?'⌂ Startseite':session && current?'↩ Zurück zum Duell':'Jetzt spielen ↗';
     cta.dataset.headerAction=isGame?'home':session && current?'game':'create';
   }
-  function createModal(mode, variant){if(!identityMode&&!session){openDialog('entryDialog');return;}$('#createName').value=savedName();if(mode && names[mode])$('#createMode').value=mode;if(variant)$('#createFootballVariant').value=variant;updateBudgetOptions();openDialog('createDialog');}
+  function setCreateStep(step){
+    $('#bbCreateProfileStep').classList.toggle('hidden',step!==1);
+    $('#bbCreateSettingsStep').classList.toggle('hidden',step!==2);
+    $$('#createDialog .bb-ob-step[data-ob-step]').forEach(el=>el.classList.toggle('is-active',Number(el.dataset.obStep)===step));
+    if(step===2)updateBudgetOptions();
+    $('#createDialog').scrollTop=0;
+  }
+  function updateOnboardMode(){
+    const mode=$('#createMode').value;
+    $('#bbOnboardModeTitle').textContent=names[mode];
+    const art=$('#bbOnboardModeArt'); if(art){art.textContent=modeIcons[mode];art.setAttribute('aria-label',names[mode]);}
+    const descriptions={football:'Ersteigere echte Fußballer und stelle dein Team zusammen.',food:'Ersteigere Zutaten und kreiere dein Lieblingsgericht.',hero:'Ersteigere Superkräfte für deinen eigenen Helden.',random:'Unvorhersehbare Challenges und jede Menge Spielspaß.'};
+    $('#bbOnboardModeCaption').textContent=descriptions[mode];
+  }
+  function createModal(mode, variant){
+    if(!identityMode&&!session){pendingEntry={type:'create',mode,variant};openDialog('entryDialog');return;}
+    directModeSelected=Boolean(mode&&names[mode]);
+    $('#createName').value=savedName();
+    $('#createMode').value=directModeSelected?mode:'football';
+    $('#createFootballVariant').value=variant||'startelf';
+    $('#bbCreateModeChooser').classList.toggle('hidden',directModeSelected);
+    $('#createBudget').value='';updateOnboardMode();updateBudgetOptions();setCreateStep(1);openDialog('createDialog');renderOnboardingPreview();
+  }
   function chooseFootballVariant(){openDialog('footballChoiceDialog');}
-  function joinModal(code){if(!identityMode&&!session){openDialog('entryDialog');return;}$('#joinName').value=savedName();$('#joinCode').value=code||'';openDialog('joinDialog');}
+  function joinModal(code){if(!identityMode&&!session){pendingEntry={type:'join',code};openDialog('entryDialog');return;}$('#joinName').value=savedName();$('#joinCode').value=code||'';openDialog('joinDialog');}
   async function request(url, method='GET', payload){
     let res;
     try{res=await fetch(url,{method,headers:{'Content-Type':'application/json',...(authToken?{'Authorization':`Bearer ${authToken}`}:{})},body:payload?JSON.stringify(payload):undefined,cache:'no-store'});}
@@ -87,7 +130,7 @@
   async function refresh(){if(!session)return;current=await request(`/api/rooms/${session.code}?token=${encodeURIComponent(session.token)}`);render();}
   async function enter(info){saveSession(info);current=info.state;closeDialogs();showGame();render();connect();}
    function auctionName(){return current.auctionType==='open'?'👀 Offen überbieten':'🙈 Blind bieten';}
-   function header(){return `<h1 class="game-title">${modeIcons[current.mode]} ${escape(current.modeLabel)}</h1><p class="game-subtitle">Spielraum <strong>${current.code}</strong> · ${current.budget} € virtuelles Startbudget · 1 gegen 1</p><div class="game-settings-tag">${auctionName()} · ${current.timeLimit?`${current.timeLimit} Sekunden`:'Ohne Zeitlimit'}</div>`;}
+   function header(){return `<div class="game-hero"><div class="game-hero-copy"><h1 class="game-title">${modeIcons[current.mode]} ${escape(current.modeLabel)}</h1><p class="game-subtitle">Spielraum <strong>${current.code}</strong> · ${current.budget} € virtuelles Startbudget · 1 gegen 1</p></div><div class="game-hero-chips"><span class="game-hero-chip game-hero-chip-primary">${auctionName()}</span><span class="game-hero-chip">${current.timeLimit?`${current.timeLimit} Sekunden`:'Ohne Zeitlimit'}</span><span class="game-hero-chip">${current.mode==='football' ? (isShort()?`${limit()} Spieler`:'Startelf') : 'Fun-Modus'}</span></div></div>`;}
   function players(){return current.players;}
   function me(){return players().find(p=>p.id===current.ownId);}
   function other(){return players().find(p=>p.id!==current.ownId);}
@@ -95,7 +138,7 @@
    // Player portraits are loaded through our server with Wikimedia fallback.
    function portrait(player, variant='tiny') {
      if(!player)return `<span class="empty-pitch-player">＋</span>`;
-     return `<span class="wiki-portrait portrait-${variant}" data-photo-id="${escape(player.id)}" title="${escape(player.title)} (${player.rating})"><span class="portrait-placeholder">${escape(player.flag||'⚽')}</span><b class="portrait-rating">${player.rating}</b></span>`;
+     return `<span class="wiki-portrait portrait-${variant}" data-photo-id="${escape(player.id)}" title="${escape(player.title)} (${player.rating})"><span class="portrait-placeholder"><span class="portrait-fallback-code">${escape(player.flag||'⚽')}</span><span class="portrait-fallback-name">${escape(initials(player.title))}</span></span><b class="portrait-rating">${player.rating}</b></span>`;
    }
    const LINES=[['LW','ST','RW'],['CM1','CM2','CM3'],['LB','CB1','CB2','RB'],['GK']];
    const SHORT={LW:'LA',ST:'ST',RW:'RA',CM1:'ZM',CM2:'ZM',CM3:'ZM',LB:'LV',CB1:'IV',CB2:'IV',RB:'RV',GK:'TW'};
@@ -132,18 +175,54 @@
        if(current.auctionType==='open')status=current.open?.turnId===player.id?'👀 Ist am Zug':'Wartet auf den nächsten Zug';
        else status=player.hasBid?'✅ Gebot abgegeben':'⏳ Überlegt noch …';
      }
-     return `<section class="player-panel ${index===1?'second':''}"><div class="player-avatar avatar-${escape(player.avatarColor)}" aria-hidden="true">${escape(player.avatar)}</div><div class="player-name">${escape(player.name)} ${player.id===current.ownId?'<span class="you-tag">DU</span>':''}</div><div class="player-budget"><b>${player.budget} €</b><small>Restbudget</small></div><div class="inventory-title">${current.mode==='football'?(isShort()?'Meine Spieler':'Aufstellung'):'Gesammelte Items'} (${player.items.length}${current.mode==='football'?`/${limit()}`:''})</div>${inventory(player.items,player.lineup,player.id)}<div class="waiting-status">${status}</div></section>`;
+     return `<section class="player-panel ${index===1?'second':''}"><div class="player-avatar avatar-${escape(player.avatarColor)}" aria-hidden="true">${avatarContent(player.avatar)}</div><div class="player-name">${escape(player.name)} ${player.id===current.ownId?'<span class="you-tag">DU</span>':''}</div><div class="player-budget"><b>${player.budget} €</b><small>Restbudget</small></div><div class="inventory-title">${current.mode==='football'?(isShort()?'Meine Spieler':'Aufstellung'):'Gesammelte Items'} (${player.items.length}${current.mode==='football'?`/${limit()}`:''})</div>${inventory(player.items,player.lineup,player.id)}<div class="waiting-status">${status}</div></section>`;
+   }
+   function flowPlayerPanel(player,index){
+     let status='';
+     if(current.status==='bidding'||current.status==='tiebreak'){
+       if(current.auctionType==='open')status=current.open?.turnId===player.id?'● Jetzt am Zug':'Wartet auf den nächsten Zug';
+       else status=player.hasBid?'✓ Gebot abgegeben':'⏳ Überlegt noch …';
+     }
+     const showCount=current.mode==='food'||current.mode==='hero'||current.mode==='random';
+     return `<section class="bb-flow-player ${index===1?'opponent':''}" aria-label="Spieler ${index+1}: ${escape(player.name)}">
+       <span class="bb-flow-watermark" aria-hidden="true">♛</span>
+       <div class="bb-flow-face avatar-${escape(player.avatarColor)}" aria-hidden="true">${avatarContent(player.avatar)}</div>
+       <div class="bb-flow-player-name">${escape(player.name)} ${player.id===current.hostId?'<span class="bb-flow-role">Host</span>':''}${player.id===current.ownId?'<span class="bb-flow-self">Du</span>':''}</div>
+       <div class="bb-flow-presence ${player.online?'online':''}">${player.online?'● Online':'○ Verbindung offen'}</div>
+       <div class="bb-flow-money"><small>RESTBUDGET</small><strong>${player.budget} <span>€</span></strong></div>
+       <div class="bb-flow-inventory-title">${showCount?'Gesammelte Items':'Sammlung'} <span>(${player.items.length})</span></div>
+       ${inventory(player.items,player.lineup,player.id)}
+       <div class="bb-flow-thinking" role="status">${status}</div>
+     </section>`;
    }
    function dropdownOptions(options,selected){return options.map(([v,t])=>`<option value="${v}" ${String(v)===String(selected)?'selected':''}>${t}</option>`).join('');}
    const budgetList=(mode,variant)=>mode==='football'?(variant==='byp'?[[20,'20 € · Klassiker'],[30,'30 €'],[40,'40 €'],[50,'50 € · Extrem']]:[[50,'50 €'],[75,'75 €'],[100,'100 €']]):[[10,'10 €'],[20,'20 €'],[30,'30 €'],[50,'50 €']];
    const timeList=[[15,'15 Sekunden · Standard'],[10,'10 Sekunden · Extrem'],[30,'30 Sekunden'],[60,'60 Sekunden · Entspannt'],[0,'Ohne Zeitlimit']];
-   function lobbyEditor(){return `<form id="lobbySettings" class="lobby-config"><h3>⚙️ Einstellungen für das nächste Spiel</h3><p class="muted">Nur der Host kann Änderungen speichern. Beide sehen sie sofort.</p><div class="lobby-settings-grid"><label>Spielmodus<select name="lobbyMode" id="lobbyMode">${dropdownOptions([['football','⚽ Football Draft'],['food','🍔 Food Battle'],['hero','🦸 Superhero'],['random','🎲 Random Battle']],current.mode)}</select></label><label id="lobbyVariantWrap" class="${current.mode==='football'?'':'hidden'}">Fußball-Variante<select name="lobbyVariant" id="lobbyVariant">${dropdownOptions([['startelf','🏟️ Startelf'],['byp','🃏 Bid Your Player']],current.footballVariant)}</select></label><label id="lobbyLimitWrap" class="${isShort()?'':'hidden'}">Spieler pro Person<select name="lobbyLimit" id="lobbyLimit">${dropdownOptions([[3,'3 Spieler'],[4,'4 Spieler'],[5,'5 Spieler']],current.playerLimit)}</select></label><label>Budget<select id="lobbyBudget" name="lobbyBudget">${dropdownOptions(budgetList(current.mode,current.footballVariant),current.budget)}</select></label><label>Auktionsart<select id="lobbyAuction" name="lobbyAuction">${dropdownOptions([['sealed','🙈 Blind bieten'],['open','👀 Offen überbieten']],current.auctionType)}</select></label><label>Zeit pro Gebot<select id="lobbyTime" name="lobbyTime">${dropdownOptions(timeList,current.timeLimit)}</select></label></div><button type="submit" class="btn btn-white btn-full">💾 Einstellungen speichern</button></form>`;}
+   const lobbyModes=[['football','Football Draft','⚽'],['food','Food Battle','🍔'],['hero','Superhero','🦸'],['random','Random Battle','🎲']];
+   function lobbyEditor(){
+     const tiles=lobbyModes.map(([id,title,icon])=>`<button type="button" class="lobby-mode-choice lobby-mode-${id} ${current.mode===id?'selected':''}" data-lobby-mode="${id}" aria-pressed="${current.mode===id}"><span class="lobby-mode-art"><span class="lobby-mode-emoji" aria-hidden="true">${icon}</span></span><b>${escape(title)}</b><span class="lobby-mode-check" aria-hidden="true">✓</span></button>`).join('');
+     return `<form id="lobbySettings" class="lobby-config lobby-editor-174">
+       <div class="lobby-editor-head"><span class="lobby-overline">⚙️ SPIELEINSTELLUNGEN</span><p>Nur der Host ändert die Regeln. Dein Mitspieler sieht sie nach dem Speichern.</p></div>
+       <label class="lobby-mode-label" for="lobbyMode">🎮 Spielmodus auswählen</label>
+       <div class="lobby-mode-grid">${tiles}</div>
+       <label class="lobby-native-mode-label" for="lobbyMode">Spielmodus <select name="lobbyMode" id="lobbyMode">${dropdownOptions([['football','⚽ Football Draft'],['food','🍔 Food Battle'],['hero','🦸 Superhero'],['random','🎲 Random Battle']],current.mode)}</select></label>
+       <div class="lobby-settings-grid"><label id="lobbyVariantWrap" class="${current.mode==='football'?'':'hidden'}">Fußball-Variante<select name="lobbyVariant" id="lobbyVariant">${dropdownOptions([['startelf','🏟️ Startelf'],['byp','🃏 Bid Your Player']],current.footballVariant)}</select></label><label id="lobbyLimitWrap" class="${isShort()?'':'hidden'}">Spieler pro Person<select name="lobbyLimit" id="lobbyLimit">${dropdownOptions([[3,'3 Spieler'],[4,'4 Spieler'],[5,'5 Spieler']],current.playerLimit)}</select></label><label>🪙 Startbudget<select id="lobbyBudget" name="lobbyBudget">${dropdownOptions(budgetList(current.mode,current.footballVariant),current.budget)}</select></label><label>⚒️ Auktionsart<select id="lobbyAuction" name="lobbyAuction">${dropdownOptions([['sealed','🙈 Blind bieten'],['open','👀 Offen überbieten']],current.auctionType)}</select></label><label>⏱️ Zeit pro Gebot<select id="lobbyTime" name="lobbyTime">${dropdownOptions(timeList,current.timeLimit)}</select></label></div>
+       <button type="submit" class="btn btn-white btn-full lobby-save-btn">✓ Einstellungen speichern</button>
+     </form>`;
+   }
    function waitingScreen(){
      const full=players().length===2;
-     const seats=`<div class="lobby-players">${players().map(p=>`<div class="lobby-seat"><span class="lobby-face avatar-${escape(p.avatarColor)}">${escape(p.avatar)}</span><b>${escape(p.name)}</b><small>${p.id===current.hostId?'👑 Host':'Mitspieler'} ${p.id===current.ownId?'· Du':''} · ${p.online?'🟢 Online':'⚪ Verbindung offen'}</small></div>`).join('')}${!full?'<div class="lobby-seat empty"><span class="lobby-face">👋</span><b>Platz frei</b><small>Warte auf Spieler 2</small></div>':''}</div>`;
-     const cfg=current.isHost?lobbyEditor():`<div class="lobby-rules"><b>Aktuelle Einstellungen</b><p>${escape(current.modeLabel)} · ${current.budget} € · ${auctionName()} · ${current.timeLimit?`${current.timeLimit} Sekunden`:'ohne Zeitlimit'} ${isShort()?`· ${limit()} Spieler`:''}</p><small>Der Host kann die Einstellungen bis zum Start ändern.</small></div>`;
-     const start=current.isHost?`<button class="btn btn-primary btn-full" type="button" data-start ${full?'':'disabled'}>${full?'🚀 Spiel starten':'Warte auf Mitspieler …'}</button>`:`<div class="lobby-waiting">⏳ Der Host startet das Spiel, sobald ihr bereit seid.</div>`;
-     return `<div class="game-shell">${header()}<section class="waiting-card lobby-card"><div class="waiting-icon">🎮</div><h2>Spiel-Lobby</h2><p class="muted">Seht, wer dabei ist, passt eure Regeln an und startet erst, wenn ihr bereit seid.</p>${current.lobbyNotice?`<div class="lobby-notice" role="status">${escape(current.lobbyNotice)}</div>`:''}${seats}<div class="invite-code">${current.code}</div><div class="invite-actions"><button class="btn btn-white" type="button" data-copy="code">📋 Code kopieren</button><button class="btn btn-white" type="button" data-copy="link">🔗 Link kopieren</button></div>${cfg}${start}<p class="muted lobby-footnote">💡 Nach dem Finale könnt ihr mit demselben Raumcode noch eine Runde spielen.</p></section></div>`;
+     const seats=players().map((p,i)=>`<section class="lobby-stage-player ${p.id===current.hostId?'host':''}"><div class="lobby-player-top"><span class="player-crown">${p.id===current.hostId?'👑':''}</span><span class="lobby-person-status ${p.online?'is-online':''}">${p.online?'● Online':'○ Verbindung offen'}</span></div><div class="lobby-stage-face avatar-${escape(p.avatarColor)}">${avatarContent(p.avatar)}</div><div class="lobby-stage-name">${escape(p.name)}</div><div class="lobby-stage-role">${p.id===current.hostId?'Host':'Mitspieler'}${p.id===current.ownId?' · Du':''}</div><div class="lobby-stage-meta"><span>${p.id===current.hostId?'👑 Leitet das Duell':'🤝 Mitspieler'}</span><span>${i+1} / 2</span></div></section>`);
+     if(!full)seats.push(`<section class="lobby-stage-player lobby-empty-seat"><div class="lobby-player-top"><span></span><span class="lobby-person-status">○ Platz frei</span></div><div class="lobby-stage-face lobby-empty-face">👋</div><div class="lobby-stage-name">Spieler 2</div><div class="lobby-stage-role">Warte auf deinen Mitspieler …</div><div class="lobby-stage-meta"><span>🔗 Lade einen Freund ein</span></div></section>`);
+     const cfg=current.isHost?lobbyEditor():`<section class="lobby-config lobby-readonly"><span class="lobby-overline">⚙️ AKTUELLE SPIELEINSTELLUNGEN</span><div class="lobby-mode-readonly"><span>${modeIcons[current.mode]}</span><strong>${escape(current.modeLabel)}</strong></div><div class="lobby-readonly-list"><span>🪙 Budget pro Spieler <b>${current.budget} €</b></span><span>⚒️ Auktionsart <b>${auctionName()}</b></span><span>⏱️ Zeitlimit <b>${current.timeLimit?`${current.timeLimit} Sekunden`:'Ohne Zeitlimit'}</b></span>${current.mode==='football'?`<span>⚽ Variante <b>${isShort()?`Bid Your Player · ${limit()} Spieler`:'Startelf · 4-3-3'}</b></span>`:''}</div><p class="muted">Der Host kann die Einstellungen vor dem Start verändern.</p></section>`;
+     const start=current.isHost?`<button class="btn btn-primary lobby-stage-start" type="button" data-start ${full?'':'disabled'}>${full?'▷ &nbsp; Spiel starten　→':'⏳ Warte auf Mitspieler …'}</button>`:`<div class="lobby-stage-start lobby-start-waiting">⏳ Der Host startet das Spiel, sobald ihr bereit seid.</div>`;
+     return `<div class="lobby-stage game-shell">
+       <div class="lobby-stage-heading"><div class="lobby-stage-intro"><span class="lobby-overline">♟ SPIELRAUM</span><h1>Bereit für das Duell?</h1><p>Lade deinen Freund ein, wähle eure Einstellungen und startet gemeinsam euer BidBattle!</p></div><div class="lobby-code-area"><div class="lobby-stage-code"><span>DEIN RAUMCODE</span><strong>${escape(current.code)}</strong><button type="button" data-copy="code" aria-label="Raumcode kopieren" title="Raumcode kopieren">▢</button></div><p>Teile den Code mit deinem Freund, damit er beitreten kann.</p></div></div>
+       ${current.lobbyNotice?`<div class="lobby-notice lobby-stage-notice" role="status">${escape(current.lobbyNotice)}</div>`:''}
+       <div class="lobby-stage-grid">${seats[0]}<div class="lobby-stage-center">${cfg}</div>${seats[1]}</div>
+       <div class="lobby-stage-actions"><button class="btn lobby-side-action" type="button" data-copy="code">🔗 Code kopieren</button>${start}<button class="btn lobby-side-action" type="button" data-copy="link">♧ Freund einladen</button></div>
+       <div class="lobby-stage-footer">${players().length}/2 Spieler im Raum · ${current.budget} € virtuelles Startbudget · ${auctionName()} · ${current.timeLimit?`${current.timeLimit} Sek. pro Gebot`:'ohne Zeitlimit'}</div>
+     </div>`;
    }
    function syncLobbyControls(){
      const mode=$('#lobbyMode'),variant=$('#lobbyVariant'),budget=$('#lobbyBudget');if(!mode||!variant||!budget)return;
@@ -186,18 +265,104 @@
      const details=current.auctionType==='sealed'
        ?`<div class="reveal-bids">${r.bids.map(x=>`<div>${escape(x.name)}<b>${x.amount} €</b></div>`).join('')}</div>`
        :`<div class="auction-history"><b>Gebotsverlauf</b>${r.history.map(x=>`<div class="auction-history-row"><span>${escape(x.name)}</span><strong>${x.pass?'Passt':`${x.amount} €`}</strong></div>`).join('')}</div>`;
-     const football='';
-     return `<div class="reveal-banner"><span style="font-size:31px">${icon}</span><strong>${title}</strong><small>${desc}</small></div>${football}${details}<div class="auto-next">⏩ Nächste ${current.round===current.total-1?'Phase':'Auktion'} startet automatisch …</div>`;
+     const football=elite(current.card)&&r.winnerId?`<div class="elite-reveal-note">✨ ELITE-SPIELER GESICHERT · ${current.card.rating} OVR ✨</div>`:'';
+     return `<div class="reveal-banner ${r.winnerId?'reveal-win':'reveal-pass'}"><span class="reveal-symbol">${icon}</span><strong>${title}</strong><small>${desc}</small></div>${football}${details}<div class="auto-next">⏩ Nächste ${current.round===current.total-1?'Phase':'Auktion'} startet automatisch …</div>`;
+   }
+   function sliderBidControls(){
+     const player=me();
+     if(current.paused)return `<div class="bid-locked">📡 Auktion pausiert – wir warten auf die Verbindung deines Mitspielers.</div>`;
+     if(current.auctionType==='sealed' && player.hasBid)return `<div class="bid-locked">🔒 Gebot gespeichert. Warte auf deinen Mitspieler …</div>`;
+     if(current.auctionType==='open'){
+       const bid=current.open;
+       if(bid?.turnId!==player.id)return openBidControls();
+       const min=(bid?.currentBid||0)+1;
+       if(min>player.budget)return openBidControls();
+       if(current.mode==='football'&&!current.footballCanBuy?.[player.id])return openBidControls();
+       return `<div class="bb-open-bid-leader">Aktuelles Gebot: <b>${bid.currentBid} €</b> · Mindestens ${min} €</div>${bidFormWithSlider(min,player.budget,'Jetzt überbieten','open')}`;
+     }
+     const extra=current.status==='tiebreak'?`<div class="tie-alert"><span>🤝</span><div><strong>Gleichstand bei ${current.tieInfo.amount} €!</strong><p>Ein letztes verdecktes Stechen entscheidet. Bei einem erneuten Gleichstand bekommt niemand das Item.</p></div></div>`:'';
+     return `${extra}${bidFormWithSlider(0,player.budget,current.status==='tiebreak'?'Stechgebot abgeben':'Gebot abgeben','sealed')}`;
+   }
+   function bidFormWithSlider(min,max,buttonLabel,kind){
+     const value=Math.max(min,Math.min(max,kind==='sealed'?2:min));
+     const label=kind==='open'?`Wie viel möchtest du überbieten?`:`Dein geheimes Gebot`;
+     return `<form id="bidForm" class="bb-bid-form"><div class="bb-bid-form-header"><label for="bidAmount">${label}</label><span>Nur virtuelles Spielgeld</span></div>
+       <div class="bb-bid-value"><span>🪙</span><input id="bidAmount" name="bidAmount" type="number" min="${min}" max="${max}" step="1" inputmode="numeric" required value="${value}" aria-label="Gebot in Euro"><span>€</span></div>
+       <input id="bidRange" type="range" min="${min}" max="${max}" step="1" value="${value}" aria-label="Gebotsbetrag mit Schieberegler einstellen" style="--bid-percent:${max>min?(value-min)/(max-min)*100:0}%" ${max===min?'disabled':''}>
+       <div class="bb-slider-labels"><span>${min} €</span><span>${max} €</span></div>
+       <div class="bid-presets"><button type="button" data-plus="1">+1 €</button><button type="button" data-plus="3">+3 €</button><button type="button" data-plus="5">+5 €</button></div>
+       <div class="bid-actions"><button type="button" class="btn btn-white" ${kind==='open'?'data-open-pass':'data-pass'}>Passen</button><button type="submit" class="btn btn-primary">⚒ ${buttonLabel} →</button></div>
+       <div class="bid-hint">${kind==='open'?'👀 Offene Auktion. Nur der Gewinner zahlt.':'🔒 Gebot bleibt geheim. Nur der Gewinner zahlt.'}</div>
+     </form>`;
+   }
+   function flowSceneHeader(){
+     const suffix=current.status==='countdown'?'Startet gleich':`Auktion ${current.round+1} / ${current.total}`;
+     return `<div class="bb-flow-top"><div class="bb-flow-mode">${modeIcons[current.mode]} <strong>${escape(current.modeLabel)}</strong><span class="bb-flow-separator" aria-hidden="true"></span><span>${suffix}</span></div><div class="bb-flow-meta"><span>${auctionName()}</span><span>${current.timeLimit?`${current.timeLimit} Sek. pro Gebot`:'Ohne Zeitlimit'}</span><span>Raum ${escape(current.code)}</span></div></div>`;
+   }
+   function flowPreviousButton(){
+     const previous=finishedAuctions.get(`${current.code}:${current.round-1}`);
+     return previous?`<button type="button" class="bb-flow-prev" data-previous-card aria-label="Vorherige abgeschlossene Auktion ansehen" title="Letzte Auktion ansehen">‹</button>`:'';
+   }
+   function flowAuctionScreen(){
+     const color=current.mode==='food'?'food':current.mode==='hero'?'hero':'random';
+     const card=current.card;
+     const results=current.status==='reveal'?reveal():sliderBidControls();
+     const timer=current.deadline?`<div class="bb-flow-timer" aria-live="off">⏱ <span id="countdown">…</span></div>`:'';
+     return `<div class="game-shell bb-flow-shell bb-mode-${color}">${flowSceneHeader()}<div class="bb-flow-roundline"><div class="bb-flow-track"><div style="width:${((current.round+1)/current.total)*100}%"></div></div><span>${current.round+1} von ${current.total} Angeboten</span>${timer}</div>
+      <div class="bb-flow-grid">${flowPlayerPanel(players()[0],0)}<div class="bb-flow-center"><section class="bb-item-card"><div class="bb-item-art ${color}">${flowPreviousButton()}<span class="bb-item-category">${escape(card.type)} · ${current.status==='reveal'?'ERGEBNIS':current.status==='tiebreak'?'STECHEN':'JETZT BIETEN'}</span><span class="bb-item-emoji" aria-hidden="true">${escape(card.emoji)}</span><span class="bb-item-art-label" aria-hidden="true">BIDBATTLE</span></div><div class="bb-item-copy"><h2>${escape(card.title)}</h2><p>${escape(card.detail)}</p></div></section><section class="bb-bid-card">${results}</section></div>${flowPlayerPanel(players()[1],1)}</div></div>`;
+   }
+   function footballPlayerPanel(player,index){
+     const short=isShort();
+     let status='';
+     if(current.status==='bidding'||current.status==='tiebreak'){
+       if(current.auctionType==='open')status=current.open?.turnId===player.id?'● Du bist am Zug':'Wartet auf seinen Zug';
+       else status=player.hasBid?'✓ Gebot abgegeben':'⏳ Überlegt noch …';
+     }
+     const avg=player.items.length?(player.items.reduce((sum,item)=>sum+item.rating,0)/player.items.length).toFixed(1):'–';
+     const max=short?limit():11;
+     const roster=short?`<div class="bb-football-mini-roster">${player.items.map(item=>`<div class="bb-football-mini-item">${portrait(item,'tiny')}<span title="${escape(item.title)}">${escape(item.title)}</span><strong>${item.rating}</strong></div>`).join('')}${Array.from({length:Math.max(0,max-player.items.length)},()=>'<span class="bb-football-roster-empty">＋ Freier Platz</span>').join('')}</div>`
+       :`<div class="bb-football-pitch-frame">${pitch(player.items,true,player.lineup||{})}</div>`;
+     return `<section class="bb-flow-player bb-football-player ${short?'bb-football-short':'bb-football-eleven'} ${index===1?'opponent':''}" aria-label="${escape(player.name)} – ${player.items.length} von ${max} Spielern">
+       <span class="bb-flow-watermark" aria-hidden="true">♛</span><div class="bb-football-player-header"><div class="bb-flow-face avatar-${escape(player.avatarColor)}" aria-hidden="true">${avatarContent(player.avatar)}</div>
+       <div class="bb-football-identity"><div class="bb-flow-player-name">${escape(player.name)} ${player.id===current.hostId?'<span class="bb-flow-role">Host</span>':''}${player.id===current.ownId?'<span class="bb-flow-self">Du</span>':''}</div><div class="bb-flow-presence ${player.online?'online':''}">${player.online?'● Online':'○ Verbindung offen'}</div></div></div>
+       <div class="bb-flow-money"><small>RESTBUDGET</small><strong>${player.budget} <span>€</span></strong></div>
+       <div class="bb-football-squad-title"><span>${short?'Meine Spieler':'4-3-3 Aufstellung'} <strong>${player.items.length}/${max}</strong></span><small>Ø ${avg} OVR</small></div>
+       ${roster}<div class="bb-flow-thinking" role="status">${status}</div>
+     </section>`;
+   }
+   function footballAuctionScreen(){
+     const card=current.card,short=isShort();
+     const special=elite(card);
+     const title=short?'Bid Your Player':'Startelf · 4-3-3';
+     const result=current.status==='reveal'?reveal():sliderBidControls();
+     const timer=current.deadline?`<span class="bb-flow-timer">⏱ <span id="countdown">…</span></span>`:'';
+     const currentLabel=current.status==='reveal'?'ERGEBNIS':current.status==='tiebreak'?'STECHEN':'JETZT BIETEN';
+     const eliteFlag=special?`<div class="bb-football-elite-label">✦ ELITE DROP · ${card.rating} OVR ✦</div>`:'';
+     return `<div class="game-shell bb-flow-shell bb-football-shell ${short?'bb-football-byp':'bb-football-startelf'}">
+       ${flowSceneHeader()}
+       <div class="bb-flow-roundline"><div class="bb-flow-track"><div style="width:${((current.round+1)/current.total)*100}%"></div></div><span>${current.round+1} von ${current.total} Angeboten</span>${timer}</div>
+       <div class="bb-flow-grid bb-football-grid">${footballPlayerPanel(players()[0],0)}
+         <div class="bb-flow-center"><section class="bb-item-card bb-football-card ${special?'bb-football-elite':''}">
+           <div class="bb-football-card-head">${flowPreviousButton()}<span class="bb-football-mode-pill">⚽ ${title}</span><span class="bb-football-round-pill">${currentLabel}</span></div>
+           <div class="bb-football-card-art">${eliteFlag}<div class="bb-football-portrait">${portrait(card,'main')}</div>
+             <span class="bb-football-rank">${card.rating} <small>OVR</small></span>
+           </div><div class="bb-item-copy bb-football-card-copy"><div class="bb-football-card-tags"><span>${escape(card.flag||'⚽')} ${escape(card.type)}</span><span>${card.rating} OVR</span></div>
+           <h2>${escape(card.title)}</h2><p>${escape(card.detail||'')}</p></div></section>
+           <section class="bb-bid-card">${result}</section></div>
+         ${footballPlayerPanel(players()[1],1)}</div>
+         <div class="bb-football-details-note">ⓘ Spielerporträts werden nur bei sicherer Zuordnung von Wikimedia geladen; sonst erscheint die Flagge. Alle Ratings sind eigene BidBattle-Werte. ${short?'Jeder sammelt '+limit()+' Spieler.':'Fehlende Plätze werden am Ende kostenlos und mit abgestuften Chancen aufgefüllt.'}</div>
+         ${short?'':lineupEditor(me())}
+     </div>`;
    }
    function auctionScreen(){
-     const isFootball=current.mode==='football';
-     const photo=isFootball?portrait(current.card,'main'):`<div class="auction-item" aria-hidden="true">${escape(current.card.emoji)}</div>`;
-     const alternates=isFootball?`<div class="football-options"><div class="football-option-info">🎯 <b>Freie Wahl:</b> Biete nur auf Spieler, die du wirklich möchtest. Ohne Zuschlag kein Spieler und keine Kosten.</div><div class="football-rating-tip">${current.card.flag} <b>${current.card.rating} OVR</b> · ${escape(current.card.type)} <small>Eigene BidBattle-Spielwerte – keine EA-FC-Ratings</small></div></div>`:'';
-     return `<div class="game-shell">${header()}<div class="round-progress"><strong>🔨 ${isFootball?'Fußballer':'Auktion'} ${current.round+1} von ${current.total}</strong><div class="progress-track"><div class="progress-fill" style="width:${((current.round+1)/current.total)*100}%"></div></div><span class="muted" style="font-size:12px">${current.total-current.round-1} danach</span></div>${current.deadline?`<div class="round-timer">⏱️ Zeit für dein Gebot: <strong id="countdown">…</strong></div>`:''}<div class="duel-layout">${playerPanel(players()[0],0)}<section class="auction-panel"><span class="auction-label">${escape(current.card.type)} · ${current.status==='reveal'?'ERGEBNIS':current.status==='tiebreak'?'STECHEN':'JETZT BIETEN'}</span>${photo}<h2>${escape(current.card.title)}</h2><p class="item-detail">${escape(current.card.detail)}</p>${current.status==='reveal'?reveal():alternates+bidControls()}</section>${playerPanel(players()[1],1)}</div>${isFootball?`<div class="photo-credit-note">Porträts nur aus eindeutig zugeordneten Wikipedia-Artikeln. Ohne verlässliches Bild erscheint die Landesflagge. ⓘ öffnet die Bildquelle. Die Ratings sind eigene Spielwerte.</div>${lineupEditor(me())}`:''}</div>`;
+     if(current.mode==='football')return footballAuctionScreen();
+     return flowAuctionScreen();
    }
    function autoFillScreen(){
      const a=current.autoFillLast, receiver=players().find(p=>p.id===a?.playerId);
-     return `<div class="game-shell">${header()}<section class="autofill-card"><div class="autofill-eyebrow">✨ AUTOMATISCHE AUFFÜLLPHASE</div><h2>Ein Spieler ist fertig!</h2><p>Es wird nicht mehr geboten. Die nächsten Spieler aus dem Angebotspool gehen jetzt <b>kostenlos</b> und nacheinander an ${escape(receiver?.name||'den anderen Spieler')}.</p>${a?`<div class="autofill-reveal" key="${escape(a.card.id)}"><div class="autofill-portrait">${portrait(a.card,'main')}</div><strong>${escape(a.card.title)}</strong><span>${a.card.rating} OVR · ${escape(a.card.type)}</span><div class="autofill-granted">✓ An ${escape(a.playerName)} vergeben · ${a.received}/${a.limit}</div></div>`:''}<div class="lobby-players">${players().map(p=>`<div class="lobby-seat"><b>${escape(p.name)}</b><small>${p.items.length}/${limit()} Spieler</small></div>`).join('')}</div><p class="muted">Die nächste Karte wird automatisch aufgedeckt …</p></section></div>`;
+     const startelf=current.autoFillReason==='startelf';
+     const explanation=startelf?'Die Auktionen sind beendet. Jetzt werden alle freien Plätze im 4-3-3 automatisch besetzt. Wer mehr Spieler verpasst hat, hat eine deutlich geringere Chance auf Elite-Karten. Alle Auffüllspieler sind kostenlos.':'Der erste Spieler ist fertig. Die nächsten Spieler aus dem Angebotspool gehen kostenlos an den anderen Spieler.';
+     return `<div class="game-shell">${header()}<section class="autofill-card ${startelf?'startelf-fill':''}"><div class="autofill-eyebrow">✨ ${startelf?'STARTELF-BONUSRUNDE':'AUTOMATISCHE AUFFÜLLPHASE'}</div><h2>${startelf?'Die Startelf wird vervollständigt!':'Ein Spieler ist fertig!'}</h2><p>${explanation}</p>${a?`<div class="autofill-reveal ${elite(a.card)?'autofill-elite':''}"><span class="autofill-rarity">${elite(a.card)?'✦ ELITE ✦':'🎴 NEUER SPIELER'}</span><div class="autofill-portrait">${portrait(a.card,'main')}</div><strong>${escape(a.card.title)}</strong><span>${a.card.rating} OVR · ${escape(a.card.type)}</span><div class="autofill-granted">✓ An ${escape(a.playerName)} vergeben · ${a.received}/${a.limit}</div>${startelf?`<small>Vorher fehlten ${a.missingAtStart} Spieler</small>`:''}</div>`:'<div class="autofill-wait">🎲 Karten werden gemischt …</div>'}<div class="lobby-players">${players().map(p=>`<div class="lobby-seat"><b>${escape(p.name)}</b><small>${p.items.length}/${limit()} Spieler</small></div>`).join('')}</div><p class="muted">${current.autoFillRemaining} Karte(n) noch offen – nächste Karte automatisch …</p></section></div>`;
    }
    function playTick(frequency=530){
     if(!soundEnabled)return;
@@ -208,29 +373,77 @@
       osc.connect(gain);gain.connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+0.15);
     }catch{}
   }
-  function countdownScreen(){return `<div class="game-shell">${header()}<section class="countdown-stage"><span class="countdown-subtitle">🏆 Macht euch bereit</span><h2>Das Duell startet!</h2><div class="countdown-number" id="start-countdown">3</div><p>Gleich geht es los. Viel Spaß beim Bieten!</p><button type="button" class="btn btn-white" data-sound-toggle>${soundEnabled?'🔊 Ton an':'🔇 Ton aus'} · ändern</button></section></div>`;}
+  function playCountdownCue(second){
+    if(!soundEnabled)return;
+    try{
+      const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)return;
+      audioCtx||=new Ctx();if(audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});
+      const t=audioCtx.currentTime;
+      // A soft synthetic 'pop' for 3,2,1 and a brief two-tone welcome cue at BID.
+      const tones=second===0?[[523,.0,.14],[659,.085,.19]]:[[second===3?392:second===2?440:494,0,.105]];
+      for(const [freq,offset,duration] of tones){
+        const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+        osc.type='sine';osc.frequency.setValueAtTime(freq,t+offset);osc.frequency.exponentialRampToValueAtTime(freq*.94,t+offset+duration);
+        gain.gain.setValueAtTime(.0001,t+offset);gain.gain.exponentialRampToValueAtTime(.038,t+offset+.012);gain.gain.exponentialRampToValueAtTime(.0001,t+offset+duration);
+        osc.connect(gain);gain.connect(audioCtx.destination);osc.start(t+offset);osc.stop(t+offset+duration+.01);
+      }
+    }catch{}
+  }
+  function countdownScreen(){
+    // All modes share the same arena while the synchronized countdown is visible.
+    const left=current.mode==='football'?footballPlayerPanel(players()[0],0):flowPlayerPanel(players()[0],0);
+    const right=current.mode==='football'?footballPlayerPanel(players()[1],1):flowPlayerPanel(players()[1],1);
+    return `<div class="game-shell bb-flow-shell bb-countdown-shell ${current.mode==='football'?'bb-football-countdown':''}">${flowSceneHeader()}<div class="bb-flow-grid bb-countdown-grid">${left}<section class="bb-countdown-stage"><span class="bb-countdown-eyebrow">✦ BIDBATTLE ✦</span><h2>Das Duell beginnt!</h2><p>Bereit zum Bieten?</p><div class="bb-countdown-ring"><div class="countdown-number" id="start-countdown" aria-live="polite">3</div></div><div class="bb-countdown-stepbars"><i></i><i></i><i></i></div><button type="button" class="bb-countdown-sound" data-sound-toggle>${soundEnabled?'🔊 Sound an':'🔇 Sound aus'}</button><p class="bb-countdown-tip">Die erste Auktion erscheint automatisch.</p></section>${right}</div></div>`;
+  }
   function updateCountdown(){
     const el=$('#countdown');if(el&&current?.deadline){const left=Math.max(0,Math.ceil((current.deadline-Date.now())/1000));el.textContent=left+' s';el.classList.toggle('timer-low',left<=5);}
     const start=$('#start-countdown');if(start&&current?.countdownEnds){const ms=current.countdownEnds-Date.now();const second=ms<=700?0:Math.min(3,Math.max(1,Math.ceil((ms-700)/1000)));
       start.textContent=second===0?'BID!':String(second);
-      if(lastCountdownSecond!==second){lastCountdownSecond=second;playTick(second===0?820:440+100*(3-second));}
+      start.classList.toggle('is-bid',second===0);
+      if(lastCountdownSecond!==second){lastCountdownSecond=second;playCountdownCue(second);}
     }
   }
    function summaryPlayer(p){
-     const face=`<div class="summary-emoji avatar-${escape(p.avatarColor)}">${escape(p.avatar)}</div>`;
+     const face=`<div class="summary-emoji avatar-${escape(p.avatarColor)}">${avatarContent(p.avatar)}</div>`;
      const content=current.mode==='football'?`${isShort()?'':`<div class="full-pitch-wrap">${pitch(p.items,false,p.lineup)}</div>`}<div class="roster-list ${isShort()?'byp-summary-list':''}">${p.items.length?p.items.map(x=>`<div>${portrait(x,'tiny')}<span>${escape(x.title)}</span><small>${x.rating} OVR · ${escape(x.type)}</small></div>`).join(''):'<p class="muted">Keine Fußballer ersteigert</p>'}</div>`
        :`<div class="summary-items">${p.items.length?p.items.map(x=>`<span title="${escape(x.title)}">${escape(x.emoji)}</span>`).join(''):'<small>Keine Items ersteigert</small>'}</div>`;
      return `<div class="summary-player">${face}<h3>${escape(p.name)}</h3><div class="summary-total">${p.items.length}${current.mode==='football'?`/${limit()} Fußballer · ${p.stats.average} Ø`:' Items gesammelt'} · ${p.budget} € übrig</div>${content}</div>`;
    }
    function confetti(){return `<div class="victory-confetti" aria-hidden="true">${Array.from({length:45},(_,i)=>`<i style="--x:${(i*61)%100}%;--d:${(i*7)%19/10}s;--dur:${2.2+(i%7)*.21}s;--rot:${(i*71)%720}deg;--color:${['#ffd34c','#8652f5','#6fd3fc','#ff89ac','#67dca2'][i%5]}"></i>`).join('')}</div>`;}
-   function votingScreen(){let actions;if(current.status==='complete'){
-       const winner=current.winner?players().find(p=>p.id===current.winner):null;
-       actions=winner?`<div class="victory-stage">${confetti()}<div class="victory-trophy">🏆</div><h2>GEWONNEN!</h2><p>${escape(winner.name)} gewinnt das Duell! 🎉</p></div>`:`<div class="winner-banner"><span>🤝</span>Unentschieden! ${current.tieBreakReason==='mutual-tie'?'Ihr habt beide Unentschieden gewählt.':'Eure Stimmen oder Ratings ergaben keinen eindeutigen Sieger.'}</div>`;
-       const iReady=(current.rematchReady||[]).includes(current.ownId);
-       actions+=`${current.tieBreakReason==='rating'?'<div class="tie-rating-note">⚖️ Rating-Stichentscheid: höherer Teamdurchschnitt gewinnt.</div>':''}<div class="postgame-actions"><button class="btn btn-primary" type="button" data-playagain ${iReady?'disabled':''}>${iReady?'✅ Bereit – warte auf deinen Freund':'🔁 Nochmal spielen'}</button><button class="btn btn-white" type="button" data-rematch>⚙️ Zur Lobby / Einstellungen</button><button class="btn btn-outline-danger" type="button" data-leave>🚪 Spiel verlassen</button></div><p class="postgame-note">${(current.rematchReady||[]).length}/2 bereit für das direkte Rückspiel. Beide bestätigen, damit niemand überraschend eine neue Runde startet.</p>`;
-     } else if(me().hasVoted){actions=`<div class="vote-pending">✅ Deine Stimme wurde gespeichert. Warte auf die zweite Abstimmung (${current.votesCast} von 2).</div>`;}
-     else{actions=`<h3>Wer hat das bessere Ergebnis gebaut?</h3><p class="muted">Bei gleichen Stimmen gewinnt die Auswahl. Bei verschiedenen Stimmen entscheidet im Fußball das durchschnittliche Rating, sonst bleibt es unentschieden.</p><div class="vote-actions">${players().map(p=>`<button class="btn btn-primary" type="button" data-vote="${p.id}">🏅 ${escape(p.name)} wählen</button>`).join('')}<button class="btn btn-white" type="button" data-vote="tie">🤝 Unentschieden</button></div>`;}
-     return `<div class="game-shell">${header()}<section class="vote-card"><div class="waiting-icon">${current.status==='complete'?'🎊':'🎨'}</div><h2 class="game-title">${current.status==='complete'?'Das Ergebnis steht fest!':'Zeit für das große Finale!'}</h2><p class="muted">${current.mode==='football'?(isShort()?'Vergleicht eure selbst ersteigerten Spieler. Die Ratings sind nur eine Orientierung – eure Stimmen entscheiden, nicht der Durchschnitt.':'Vergleicht eure selbst ersteigerten Fußballer und 4-3-3-Aufstellungen. Freie Plätze bleiben frei.'):'Vergleicht eure Kreationen und kürt den Sieger.'}</p><div class="summary-grid">${players().map(summaryPlayer).join('')}</div>${current.mode==='football'&&!isShort()?lineupEditor(me()):''}${actions}</section></div>`;
+   function podiumCollection(p){
+     const items=p.items||[];
+     const count=current.mode==='football'?`${items.length}/${limit()} Fußballer`:`${items.length} ${items.length===1?'Item':'Items'}`;
+     return `<div class="bb-podium-collection"><div class="bb-podium-collection-head"><strong>Gesammelte ${current.mode==='football'?'Spieler':'Items'}</strong><span>${count}</span></div><div class="bb-podium-item-list ${current.mode==='football'?'bb-podium-football':''}">${items.length?items.map(item=>current.mode==='football'?`<div class="bb-podium-football-item">${portrait(item,'tiny')}<span><b>${escape(item.title)}</b><small>${item.rating} OVR · ${escape(item.type)}</small></span></div>`:`<div class="bb-podium-food-item" title="${escape(item.title)}"><span>${escape(item.emoji)}</span><small>${escape(item.title)}</small></div>`).join(''):'<p class="bb-podium-empty">Keine Items gesammelt</p>'}</div></div>`;
+   }
+   function podiumParticipant(p,rank,champion=false){
+     const average=current.mode==='football'&&p.stats?` · ${p.stats.average} Ø Rating`:'';
+     return `<article class="bb-podium-player ${champion?'bb-podium-champion':'bb-podium-runner'}"><div class="bb-podium-player-heading"><span class="bb-podium-rank">${rank==='1'?'🥇 Platz 1':rank==='2'?'🥈 Platz 2':'🤝 Unentschieden'}</span><div class="bb-podium-face avatar-${escape(p.avatarColor)}">${avatarContent(p.avatar)}</div><h3>${escape(p.name)}</h3><p>${p.id===current.ownId?'Du · ':''}${p.id===current.hostId?'Host':'Mitspieler'}</p><div class="bb-podium-metrics">${p.budget} € übrig${average}</div></div></article>`;
+   }
+   function podiumColumn(p,rank,champion=false){
+     const step=rank==='1'?'bb-podium-gold-step':rank==='2'?'bb-podium-silver-step':'bb-podium-draw-step';
+     return `<div class="bb-v18-podium-column ${champion?'bb-v18-champion':'bb-v18-runner'}" aria-label="${rank==='tie'?'Gleichstand':`Platz ${rank}`}: ${escape(p.name)}">${podiumParticipant(p,rank,champion)}<div class="${step}"><span>${rank==='tie'?'=':rank}</span><small>${rank==='tie'?'REMIS':'PLATZ'}</small></div>${podiumCollection(p)}</div>`;
+   }
+   function podiumTrophy(){return `<svg class="bb-podium-trophy" viewBox="0 0 160 170" role="img" aria-label="Goldener Siegerpokal"><defs><linearGradient id="bbtrophyG" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#fff1ad"/><stop offset=".45" stop-color="#ffcb4d"/><stop offset="1" stop-color="#d78d1b"/></linearGradient></defs><path d="M48 30H24v25c0 23 17 37 39 35M112 30h24v25c0 23-17 37-39 35" fill="none" stroke="#e6a32d" stroke-width="11" stroke-linecap="round"/><path d="M47 18h66v49c0 30-19 49-33 49S47 97 47 67Z" fill="url(#bbtrophyG)" stroke="#d89b30" stroke-width="3"/><path d="m80 40 6 11 12 2-9 9 2 12-11-6-11 6 2-12-9-9 12-2Z" fill="#fff4c7"/><path d="M74 115h12v21H74Z" fill="#eab440"/><rect x="57" y="134" width="46" height="10" rx="4" fill="#ffdc77"/><rect x="45" y="144" width="70" height="18" rx="5" fill="#aa62db"/><path d="M49 148h62" stroke="#dfb3ff" stroke-width="2"/></svg>`;}
+   function victoryScreen(){
+     const winner=current.winner?players().find(p=>p.id===current.winner):null;
+     const runner=winner?players().find(p=>p.id!==winner.id):null;
+     const draw=!winner;
+     const ready=(current.rematchReady||[]).includes(current.ownId),readyCount=(current.rematchReady||[]).length;
+     const result=draw?`<div class="bb-podium-title bb-podium-draw-title"><span class="bb-podium-crown" aria-hidden="true">🤝</span><div class="bb-podium-heading">UNENTSCHIEDEN</div><p>${current.tieBreakReason==='mutual-tie'?'Ihr habt beide Unentschieden gewählt.':'Kein eindeutiger Sieger – starkes Duell!'}</p></div>`:
+       `<div class="bb-podium-title"><span class="bb-podium-crown" aria-hidden="true">♛</span><div class="bb-podium-heading">GEWINNER</div><p>${escape(winner.name)} gewinnt das Duell!</p></div>`;
+     // Version 1.8: beide Spieler in gleich breiten Spalten; keine seitliche dritte Sammlung.
+     const cards=winner?
+       `${podiumColumn(runner,'2',false)}${podiumColumn(winner,'1',true)}`:
+       `${podiumColumn(players()[0],'tie',false)}${podiumColumn(players()[1],'tie',false)}`;
+     const verdict=current.tieBreakReason==='rating'?'<p class="bb-podium-verdict">⚖️ Rating-Stichentscheid: höherer Mannschaftsdurchschnitt gewinnt.</p>':'';
+     return `<div class="game-shell bb-flow-shell bb-podium-shell">${confetti()}<div class="bb-podium-mode">${modeIcons[current.mode]} ${escape(current.modeLabel)} <span>· Finale</span></div>${result}<section class="bb-podium-main" aria-label="Spielergebnis">${cards}</section>${verdict}<div class="bb-podium-actions"><button class="btn btn-primary" type="button" data-playagain ${ready?'disabled':''}>${ready?'✅ Bereit – auf Mitspieler warten':'🔁 Nochmal spielen'}</button><button class="btn btn-white" type="button" data-rematch>👥 Zur Lobby</button><button class="btn btn-outline-danger" type="button" data-leave>🚪 Spiel verlassen</button></div><p class="bb-podium-ready" aria-live="polite">${readyCount}/2 Spieler bereit für ein Rückspiel. Eine neue Runde beginnt erst, wenn beide zustimmen.</p></div>`;
+   }
+   function votingScreen(){
+     if(current.status==='complete')return victoryScreen();
+     let actions;
+     if(me().hasVoted){actions=`<div class="vote-pending">✅ Deine Stimme wurde gespeichert. Warte auf die zweite Abstimmung (${current.votesCast} von 2).</div>`;}
+     else{actions=`<h3>Wer hat das bessere Ergebnis gebaut?</h3><p class="muted">Wenn beide denselben Sieger wählen, gewinnt dieser. Bei unterschiedlichen Stimmen entscheidet im Fußball das durchschnittliche Rating, sonst bleibt es unentschieden.</p><div class="vote-actions">${players().map(p=>`<button class="btn btn-primary" type="button" data-vote="${p.id}">🏅 ${escape(p.name)} wählen</button>`).join('')}<button class="btn btn-white" type="button" data-vote="tie">🤝 Unentschieden</button></div>`;}
+     return `<div class="game-shell">${header()}<section class="vote-card"><div class="waiting-icon">🎨</div><h2 class="game-title">Zeit für das große Finale!</h2><p class="muted">${current.mode==='football'?(isShort()?'Vergleicht eure selbst ersteigerten Spieler. Die Ratings sind nur eine Orientierung – eure Stimmen entscheiden.':'Vergleicht eure 4-3-3-Teams. Fehlende Spieler wurden nach den Auktionen automatisch aufgefüllt; bei vielen fehlenden Plätzen sinkt die Chance auf Stars.'):'Vergleicht eure Kreationen und kürt den Sieger.'}</p><div class="summary-grid">${players().map(summaryPlayer).join('')}</div>${current.mode==='football'&&!isShort()?lineupEditor(me()):''}${actions}</section></div>`;
    }
    async function getPhoto(id){
      if(photoCache.has(id))return photoCache.get(id);
@@ -249,11 +462,22 @@
      $$('.wiki-portrait[data-photo-id]', $('#gameContent')).forEach(async(el)=>{
        const info=await getPhoto(el.dataset.photoId);if(!info||!el.isConnected)return;
        const img=document.createElement('img');img.src=info.src;img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';
-       img.onerror=()=>img.remove();el.append(img);
-       const credit=document.createElement('a');credit.className='portrait-source';credit.href=info.source;credit.target='_blank';credit.rel='noopener noreferrer';credit.textContent='ⓘ';credit.title='Bildnachweis und Lizenz auf Wikimedia Commons';credit.setAttribute('aria-label','Bildquelle und Lizenz öffnen');img.addEventListener('load',()=>{if(el.isConnected)el.append(credit);},{once:true});
+       img.onerror=()=>img.remove();el.classList.add('has-photo');el.append(img);
+       const credit=document.createElement('a');credit.className='portrait-source';credit.href=info.source;credit.target='_blank';credit.rel='noopener noreferrer';credit.textContent='ⓘ';credit.title='Fotograf, Quelle und Lizenz bei Wikimedia Commons prüfen';credit.setAttribute('aria-label','Bildquelle und Lizenz öffnen');img.addEventListener('load',()=>{if(!el.isConnected)return;el.append(credit);if(info.article?.startsWith('https://en.wikipedia.org/wiki/')){const wiki=document.createElement('a');wiki.className='portrait-wiki-link';wiki.href=info.article;wiki.target='_blank';wiki.rel='noopener noreferrer';wiki.title='Wikipedia-Profil des Spielers';wiki.textContent='W';wiki.setAttribute('aria-label','Wikipedia-Spielerprofil öffnen');el.append(wiki);}},{once:true});
      });
    }
-   function render(){if(!current)return;$('#exitGame').textContent=current.status==='waiting'?'← Spiel verlassen':'← Zur Lobby';$('#gameContent').innerHTML=current.status==='waiting'?waitingScreen():current.status==='countdown'?countdownScreen():current.status==='autofill'?autoFillScreen():['bidding','tiebreak','reveal'].includes(current.status)?auctionScreen():votingScreen();if(current.mode==='football')hydratePortraits();if(current.status!=='countdown')lastCountdownSecond=null;updateCountdown();updateHeader();}
+   function render(){if(!current)return;
+    if(current.status==='reveal'&&current.card&&current.lastResult)finishedAuctions.set(`${current.code}:${current.round}`,{title:current.card.title,emoji:current.card.emoji,detail:current.card.detail,result:current.lastResult.winnerName||'Niemand'});
+    const scene=current.status==='waiting'?'lobby':current.status==='countdown'?'countdown':current.mode==='football'?'football':(['bidding','tiebreak','reveal'].includes(current.status)?'auction':current.status);
+    const changed=scene!==lastScene;lastScene=scene;
+    // Optional, very short cue: play once per new elite offer / won auction.
+    const eliteKey=current.mode==='football'&&elite(current.card)?`${current.code}:${current.round}`:'';
+    if(current.status==='bidding' && eliteKey && eliteKey!==lastEliteCueKey){
+      lastEliteCueKey=eliteKey;playTick(780);
+    }
+    const winKey=current.status==='reveal'&&current.lastResult?.winnerId===current.ownId?`${current.code}:${current.round}`:'';
+    if(winKey && winKey!==lastWinCueKey){lastWinCueKey=winKey;playTick(600);}
+    $('#exitGame').textContent=current.status==='waiting'?'← Spiel verlassen':'← Zur Lobby';$('#gameContent').innerHTML=current.status==='waiting'?waitingScreen():current.status==='countdown'?countdownScreen():current.status==='autofill'?autoFillScreen():['bidding','tiebreak','reveal'].includes(current.status)?auctionScreen():votingScreen();if(current.mode==='football')hydratePortraits();if(changed){const content=$('#gameContent');content.classList.remove('bb-scene-enter');void content.offsetWidth;content.classList.add('bb-scene-enter');}if(current.status!=='countdown')lastCountdownSecond=null;updateCountdown();updateHeader();}
   async function postAction(action, data={}){if(requestPending||!session)return;requestPending=true;try{const state=await request(`/api/rooms/${session.code}/${action}`,'POST',{token:session.token,...data});current=state;render();}catch(err){notify(err.message);}finally{requestPending=false;}}
   function navigateHome(){if(session&&current){leaveRoom();}else showHome();}
   async function leaveRoom(){
@@ -271,9 +495,21 @@
     $('#collectionDescription').textContent=item.detail;
     openDialog('collectionDialog');
   }
-  function setIdentity(mode){identityMode=mode;localStorage.setItem('bidbattle-identity',mode);closeDialogs();const incoming=new URLSearchParams(location.search).get('room');if(incoming&&!session)joinModal(incoming);}
+  function resumeEntryIntent(){
+    const action=pendingEntry;pendingEntry=null;
+    if(action?.type==='create')createModal(action.mode,action.variant);
+    else if(action?.type==='join')joinModal(action.code);
+    else {const incoming=new URLSearchParams(location.search).get('room');if(incoming&&!session)joinModal(incoming);}
+  }
+  function setIdentity(mode){identityMode=mode;localStorage.setItem('bidbattle-identity',mode);closeDialogs();resumeEntryIntent();}
   function showAuth(mode){loginMode=mode;$('#accountNameWrap').classList.toggle('hidden',mode==='login');$('#accountHeading').textContent=mode==='login'?'Bei BidBattle anmelden':'Kostenloses Konto erstellen';$('#authSubmit').textContent=mode==='login'?'Anmelden':'Registrieren';$('#accountName').required=mode!=='login';$('#accountName').value=savedName();openDialog('accountDialog');}
-  async function authRestore(){if(!authToken)return;try{const v=await request('/api/auth/me');account=v.user;identityMode='account';localStorage.setItem('bidbattle-identity','account');persistName(account.name);}catch{authToken='';localStorage.removeItem('bidbattle-auth-token');identityMode='';}}
+  async function authRestore(){if(!authToken)return;try{const v=await request('/api/auth/me');account=v.user;identityMode='account';localStorage.setItem('bidbattle-identity','account');chosenAvatar=emojiAvatar(account.avatar);chosenColor=COLORS.includes(account.avatarColor)?account.avatarColor:'lilac';persistName(account.name);}catch{authToken='';localStorage.removeItem('bidbattle-auth-token');identityMode='';}}
+  async function syncRegisteredProfile(name){
+    if(!account)return;
+    if(account.name===name && account.avatar===chosenAvatar && account.avatarColor===chosenColor)return;
+    const r=await request('/api/auth/profile','POST',{name,avatar:chosenAvatar,avatarColor:chosenColor});
+    account=r.user;
+  }
   async function copyText(value){try{await navigator.clipboard.writeText(value);notify('Kopiert! 🎉');}catch{const temp=document.createElement('textarea');temp.value=value;temp.style.position='fixed';temp.style.opacity='0';document.body.append(temp);temp.select();try{document.execCommand('copy');notify('Kopiert! 🎉');}catch{notify(`Zum Kopieren: ${value}`);}temp.remove();}}
 
   // Homepage and navigation: fewer buttons and real Home actions.
@@ -303,8 +539,8 @@
   $('#authSwitch').addEventListener('click',()=>showAuth(loginMode==='login'?'register':'login'));
   $('#accountForm').addEventListener('submit',async e=>{e.preventDefault();const button=$('#authSubmit');button.disabled=true;
     try{const r=await request(`/api/auth/${loginMode}`,'POST',{email:$('#accountEmail').value,password:$('#accountPassword').value,name:$('#accountName').value,avatar:chosenAvatar,avatarColor:chosenColor});
-      authToken=r.token;account=r.user;localStorage.setItem('bidbattle-auth-token',authToken);identityMode='account';localStorage.setItem('bidbattle-identity','account');persistName(account.name);closeDialogs();notify('Du bist angemeldet!');
-      const incoming=new URLSearchParams(location.search).get('room');if(incoming&&!session)joinModal(incoming);
+      authToken=r.token;account=r.user;localStorage.setItem('bidbattle-auth-token',authToken);identityMode='account';localStorage.setItem('bidbattle-identity','account');chosenAvatar=emojiAvatar(account.avatar);chosenColor=COLORS.includes(account.avatarColor)?account.avatarColor:'lilac';persistName(account.name);closeDialogs();notify('Du bist angemeldet!');
+      resumeEntryIntent();
     }catch(err){notify(err.message);}finally{button.disabled=false;}
   });
   $('#logoutAccount').addEventListener('click',async()=>{if(!account)return;await request('/api/auth/logout','POST',{}).catch(()=>{});account=null;authToken='';identityMode='';localStorage.removeItem('bidbattle-auth-token');localStorage.removeItem('bidbattle-identity');closeDialogs();openDialog('entryDialog');});
@@ -317,6 +553,8 @@
     if(confirm('Die aktuelle Partie für beide Spieler beenden und in die gemeinsame Lobby zurückkehren?'))postAction('lobby');
   });
   $('#homeLogo').addEventListener('click',e=>{e.preventDefault();navigateHome();});
+  $('#navHome').addEventListener('click',event=>{event.preventDefault();if(session&&current){navigateHome();return;}showHome();});
+  $('#navModes').addEventListener('click',event=>{event.preventDefault();if(session&&current){notify('Verlasse zuerst den aktuellen Spielraum, um die Modi zu wechseln.');return;}showHome();requestAnimationFrame(()=>$('#modes').scrollIntoView({behavior:'smooth',block:'start'}));});
   function updateBudgetOptions(){
     const select=$('#createBudget');
     const football=$('#createMode').value==='football';
@@ -329,35 +567,52 @@
     $('#playerLimitFields').classList.toggle('hidden',!short);
     $('#footballModeHint').classList.toggle('hidden',!football);
   }
-  $('#createMode').addEventListener('change',updateBudgetOptions);
+  $('#createMode').addEventListener('change',()=>{updateBudgetOptions();updateOnboardMode();});
+  $('#bbCreateContinue').addEventListener('click',()=>{const field=$('#createName');if(!field.reportValidity())return;setCreateStep(2);});
+  $('#bbCreateBack').addEventListener('click',()=>setCreateStep(1));
+  $('#createName').addEventListener('input',renderOnboardingPreview);
   $('#createFootballVariant').addEventListener('change',updateBudgetOptions);
   updateBudgetOptions();
   $('#createForm').addEventListener('submit',async e=>{
     e.preventDefault();const name=$('#createName').value.trim();if(!name)return;const button=$('#createSubmit');button.disabled=true;button.textContent='Wird erstellt …';
-    try{const response=await request('/api/rooms','POST',{name,mode:$('#createMode').value,footballVariant:$('#createMode').value==='football'?$('#createFootballVariant').value:null,playerLimit:Number($('#createPlayerLimit').value),budget:Number($('#createBudget').value),timeLimit:Number($('#createTimeLimit').value),auctionType:$('#createForm input[name=auctionType]:checked').value,avatar:chosenAvatar,avatarColor:chosenColor});persistName(name);await enter(response);}catch(err){notify(err.message);}finally{button.disabled=false;button.textContent='Spiel erstellen →';}
+    try{await syncRegisteredProfile(name);const response=await request('/api/rooms','POST',{name,mode:$('#createMode').value,footballVariant:$('#createMode').value==='football'?$('#createFootballVariant').value:null,playerLimit:Number($('#createPlayerLimit').value),budget:Number($('#createBudget').value),timeLimit:Number($('#createTimeLimit').value),auctionType:$('#createForm input[name=auctionType]:checked').value,avatar:chosenAvatar,avatarColor:chosenColor});persistName(name);await enter(response);}catch(err){notify(err.message);}finally{button.disabled=false;button.textContent='Spiel erstellen →';}
   });
   $('#joinCode').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);});
   $('#joinForm').addEventListener('submit',async e=>{
     e.preventDefault();const name=$('#joinName').value.trim();const code=$('#joinCode').value.trim().toUpperCase();if(!/^[A-Z2-9]{6}$/.test(code)){notify('Bitte gib einen gültigen 6-stelligen Code ein.');return;}
     const button=$('#joinSubmit');button.disabled=true;button.textContent='Verbinde …';
-    try{const response=await request(`/api/rooms/${code}/join`,'POST',{name,avatar:chosenAvatar,avatarColor:chosenColor});persistName(name);await enter(response);}catch(err){notify(err.message);}finally{button.disabled=false;button.textContent='Spiel beitreten →';}
+    try{await syncRegisteredProfile(name);const response=await request(`/api/rooms/${code}/join`,'POST',{name,avatar:chosenAvatar,avatarColor:chosenColor});persistName(name);await enter(response);}catch(err){notify(err.message);}finally{button.disabled=false;button.textContent='Spiel beitreten →';}
   });
   $('#gameContent').addEventListener('click',async e=>{
     if(e.target.closest('.squad-editor > summary')){editorOpen=!editorOpen;return;}
-    const quick=e.target.closest('[data-plus]');if(quick){const input=$('#bidAmount');if(input){input.value=String(Math.min(Number(input.max),Math.max(0,Number(input.value||0))+Number(quick.dataset.plus)));}return;}
+    const quick=e.target.closest('[data-plus]');if(quick){const input=$('#bidAmount');if(input){input.value=String(Math.min(Number(input.max),Math.max(Number(input.min||0),Number(input.value||0))+Number(quick.dataset.plus)));syncBidRange();}return;}
     if(e.target.closest('[data-pass]'))return postAction('bid',{amount:0});
      if(e.target.closest('[data-open-pass]'))return postAction('pass');
     const voter=e.target.closest('[data-vote]');if(voter)return postAction('vote',{winnerId:voter.dataset.vote});
+    const modeButton=e.target.closest('[data-lobby-mode]');if(modeButton){const select=$('#lobbyMode');if(select){select.value=modeButton.dataset.lobbyMode;syncLobbyControls();$$('[data-lobby-mode]', $('#gameContent')).forEach(btn=>{const active=btn===modeButton;btn.classList.toggle('selected',active);btn.setAttribute('aria-pressed',String(active));});}return;}
     const copier=e.target.closest('[data-copy]');if(copier)return copyText(copier.dataset.copy==='code'?current.code:shareLink());
     if(e.target.closest('[data-rematch]'))return postAction('lobby');
     if(e.target.closest('[data-leave]'))return leaveRoom();
     if(e.target.closest('[data-sound-toggle]')){soundEnabled=!soundEnabled;localStorage.setItem('bidbattle-sound',soundEnabled?'on':'off');render();return;}
+    if(e.target.closest('[data-previous-card]')){const prev=finishedAuctions.get(`${current.code}:${current.round-1}`);if(prev){$('#collectionTitle').textContent=`${prev.emoji} ${prev.title}`;$('#collectionOwner').textContent='Vorherige abgeschlossene Auktion';$('#collectionDescription').textContent=`${prev.detail} · Ergebnis: ${prev.result}`;openDialog('collectionDialog');}return;}
     const ingredient=e.target.closest('[data-item-index]');if(ingredient)return showCollection(ingredient.dataset.ownerId,Number(ingredient.dataset.itemIndex));
     if(e.target.closest('[data-playagain]'))return postAction('playagain');
     if(e.target.closest('[data-start]'))return postAction('start');
   });
-  $('#gameContent').addEventListener('change',e=>{
-    if(e.target.matches('#lobbyMode,#lobbyVariant')){syncLobbyControls();return;}
+  function syncBidRange(fromRange=false){
+    const input=$('#bidAmount'),range=$('#bidRange');if(!input||!range)return;
+    if(fromRange)input.value=range.value;
+    else if(input.value!==''){const n=Number(input.value);if(Number.isFinite(n))range.value=String(Math.max(Number(range.min),Math.min(Number(range.max),n)));}
+    const min=Number(range.min),max=Number(range.max);
+    range.style.setProperty('--bid-percent',`${max>min?((Number(range.value)-min)/(max-min))*100:0}%`);
+  }
+  $('#gameContent').addEventListener('input',e=>{
+    if(e.target.id==='bidRange')syncBidRange(true);
+    else if(e.target.id==='bidAmount')syncBidRange();
+  });
+  $('#gameContent').addEventListener('change',e=>{if(e.target.id==='bidAmount'){syncBidRange();return;}
+
+    if(e.target.matches('#lobbyMode,#lobbyVariant')){syncLobbyControls();if(e.target.id==='lobbyMode')$$('[data-lobby-mode]', $('#gameContent')).forEach(btn=>{const active=btn.dataset.lobbyMode===e.target.value;btn.classList.toggle('selected',active);btn.setAttribute('aria-pressed',String(active));});return;}
     const el=e.target.closest('[data-assign-player]');if(!el)return;
     postAction('lineup',{playerId:el.dataset.assignPlayer,slot:el.value});
   });

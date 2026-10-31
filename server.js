@@ -17,7 +17,7 @@ const ACCOUNTS_ENABLED=storage.remote || process.env.BIDBATTLE_PERSISTENT_DISK==
 const AUTO_NEXT_MS = TEST_FAST ? 35 : 1700;
 const AUTO_FILL_MS = TEST_FAST ? 40 : 1550;
 const START_COUNTDOWN_MS=TEST_FAST?55:3800;
-const AVATARS = ['🙂','😎','🤩','🐼','🦊','🐯','🐱','🐸','🦄','🤖','👽','🐧'];
+const AVATARS = ['nova','luna','kai','roxy','ace','milo','juno','zara','rex','ember','shadow','pixel','🙂','😎','🤩','🐼','🦊','🐯','🐱','🐸','🦄','🤖','👽','🐧'];
 const AVATAR_COLORS = ['lilac','blue','peach','mint','pink','yellow'];
 function safeAvatar(v) {return AVATARS.includes(v) ? v : '🙂';}
 function safeColor(v) {return AVATAR_COLORS.includes(v) ? v : 'lilac';}
@@ -38,11 +38,21 @@ function parseSettings(b){
  if(!TIME_LIMITS.includes(timeLimit))throw Error('Ungültiges Zeitlimit.');
  return {mode,footballVariant:variant,playerLimit,startBudget:budget,auctionType:b.auctionType,timeLimit};
 }
-function newDeck(room){return room.mode==='football'?(room.footballVariant==='byp'?shuffle(catalog).slice(0,room.playerLimit*4):createDeck(crypto)):shuffle(CATALOG[room.mode]).slice(0,12);}
+function newDeck(room){
+ if(room.mode!=='football')return shuffle(CATALOG[room.mode]).slice(0,12);
+ const recent=new Set((room.deckHistory||[]).flat());
+ if(room.footballVariant==='startelf')return createDeck(crypto,recent);
+ const fresh=shuffle(catalog.filter(p=>!recent.has(p.id)));
+ const older=shuffle(catalog.filter(p=>recent.has(p.id)));
+ return [...fresh,...older].slice(0,room.playerLimit*4);
+}
 function cancelTimer(room){if(room.timer)clearTimeout(room.timer);room.timer=null;room.deadline=null;room.timerSeq=(room.timerSeq||0)+1;}
 function resetMatch(room){cancelTimer(room);if(room.countdownTimer)clearTimeout(room.countdownTimer);room.countdownTimer=null;if(room.resultTimer)clearTimeout(room.resultTimer);room.resultTimer=null;if(room.disconnectTimer)clearTimeout(room.disconnectTimer);room.disconnectTimer=null;room.paused=false;room.wasLive=false;room.pauseRemaining=null;room.countdownEnds=null;
+ if(room.mode==='football' && room.cards?.length && room.round>0){
+   room.deckHistory=[...(room.deckHistory||[]).slice(-1),room.cards.map(c=>c.id)];
+ }
  room.players.forEach(p=>{p.budget=room.startBudget;p.items=[];p.lineup={};});room.cards=newDeck(room);
- room.round=0;room.status='waiting';room.bids=new Map();room.votes=new Map();room.lastResult=null;room.tieInfo=null;room.open=null;room.winner=null;room.lastAuctionWinnerId=null;room.autoFillLast=null;room.ready=new Set();room.notice=null;room.tieBreakReason=null;
+ room.round=0;room.status='waiting';room.bids=new Map();room.votes=new Map();room.lastResult=null;room.tieInfo=null;room.open=null;room.winner=null;room.lastAuctionWinnerId=null;room.autoFillLast=null;room.autoFillQueue=[];room.autoFillReason=null;room.ready=new Set();room.notice=null;room.tieBreakReason=null;
 }
 
 function canWinCard(room, player, card) {return room.mode!=='football'||(room.footballVariant==='byp' ? player.items.length<room.playerLimit && player.budget>=1 : canAcquire(player,card));}
@@ -124,7 +134,7 @@ function publicState(room, token) {
   return {
     code:room.code, mode:room.mode, modeLabel:room.mode==='football'?FOOTBALL_VARIANTS[room.footballVariant]:LABELS[room.mode], status:room.status, paused:!!room.paused, countdownEnds:room.countdownEnds||null, tieBreakReason:room.tieBreakReason||null, storageKind:storage.status().kind,
     footballVariant:room.mode==='football'?room.footballVariant:null, playerLimit:room.mode==='football'?footballLimit(room):null,
-    budget:room.startBudget, auctionType:room.auctionType, timeLimit:room.timeLimit, deadline:room.deadline, hostId:room.hostId, isHost:own.id===room.hostId, round:room.round, total:room.cards.length, autoFillLast:room.status==='autofill'?room.autoFillLast:null,
+    budget:room.startBudget, auctionType:room.auctionType, timeLimit:room.timeLimit, deadline:room.deadline, hostId:room.hostId, isHost:own.id===room.hostId, round:room.round, total:room.cards.length, autoFillLast:room.status==='autofill'?room.autoFillLast:null, autoFillReason:room.status==='autofill'?(room.autoFillReason||'byp'):null, autoFillRemaining:room.status==='autofill'?(room.autoFillQueue?.length||0):0,
     open:room.auctionType === 'open' && room.status === 'bidding' ? {
       currentBid:room.open.currentBid,
       leaderId:room.open.leaderId,
@@ -166,6 +176,43 @@ function armDeadline(room,overrideMs){
   touch(room);
  },delay);room.timer.unref();
 }
+// Startelf: fill every legal 4-3-3 slot after normal auctions are no longer possible.
+// The more places a user failed to purchase, the LOWER the chance of a star
+// card (88+) in each of their free penalty picks. All picks still score 80+.
+function weightedStartelfCard(options,missingAtStart){
+  const premiumChance=Math.max(0.015,0.27*Math.pow(0.75,Math.max(0,missingAtStart-1)));
+  const good=options.filter(x=>x.rating>=88),normal=options.filter(x=>x.rating<88);
+  const basket=good.length&&(!normal.length||crypto.randomInt(1000000)<Math.floor(premiumChance*1000000))?good:(normal.length?normal:good);
+  return basket[crypto.randomInt(basket.length)];
+}
+function planStartelfAutoFill(room){
+  const used=new Set(room.players.flatMap(p=>p.items.map(c=>c.id)));
+  const clones=room.players.map(p=>({id:p.id,name:p.name,items:[...p.items],lineup:{...p.lineup},missing:11-p.items.length}));
+  const queue=[];
+  // Important: specialist positions first, because there are fewer suitable cards.
+  const slotOrder=['GK','RB','LB','CB1','CB2','CM1','CM2','CM3','LW','RW','ST'];
+  for(let step=0;step<11;step++)for(const p of clones){
+    if(p.items.length>=11)continue;
+    const formation=arrange(p.items,p.lineup)||{};
+    const empty=slotOrder.find(slot=>!formation[slot]);
+    if(!empty)throw new Error('Auffüllung: Keine freie Position gefunden.');
+    const eligible=catalog.filter(c=>!used.has(c.id)&&c.eligible.includes(empty)&&arrange([...p.items,c],formation));
+    if(!eligible.length)throw new Error(`Auffüllung: Keine verfügbaren Spieler für ${empty}.`);
+    const card=weightedStartelfCard(eligible,p.missing);
+    p.items.push(card);p.lineup=arrange(p.items,formation);
+    used.add(card.id);
+    queue.push({playerId:p.id,playerName:p.name,card,missingAtStart:p.missing});
+  }
+  return queue;
+}
+function activateStartelfAutoFill(room){
+ if(room.mode!=='football'||room.footballVariant!=='startelf'||room.players.every(p=>p.items.length===11))return false;
+ cancelTimer(room);
+ room.status='autofill';room.open=null;room.autoFillLast=null;room.autoFillReason='startelf';
+ room.autoFillQueue=planStartelfAutoFill(room);
+ autoFillNext(room);
+ return true;
+}
 function activateAutoFill(room){
  if(room.mode!=='football'||room.footballVariant!=='byp')return false;
  const full=room.players.filter(p=>p.items.length>=room.playerLimit);
@@ -173,11 +220,25 @@ function activateAutoFill(room){
  const recipient=room.players.find(p=>p.id!==full[0].id);
  if(recipient.items.length>=room.playerLimit)return false;
  cancelTimer(room);
- room.status='autofill';room.open=null;room.autoFillLast=null;
+ room.status='autofill';room.open=null;room.autoFillLast=null;room.autoFillReason='byp';room.autoFillQueue=[];
  autoFillNext(room);return true;
 }
 function autoFillNext(room){
  if(room.status!=='autofill')return;
+ if(room.autoFillReason==='startelf'){
+   const next=room.autoFillQueue?.shift();
+   if(!next){room.status='voting';room.autoFillLast=null;room.autoFillQueue=[];touch(room);return;}
+   const target=room.players.find(p=>p.id===next.playerId);
+   if(!target||target.items.length>=11)throw new Error('Ungültiger Auffüll-Empfänger.');
+   const newLineup=arrange([...target.items,next.card],target.lineup);
+   if(!newLineup)throw new Error('Auffüllung verletzt Positionsregeln.');
+   target.items.push(next.card);target.lineup=newLineup;
+   room.autoFillLast={...next,received:target.items.length,limit:11};
+   touch(room);
+   room.resultTimer=setTimeout(()=>{room.resultTimer=null;autoFillNext(room);},AUTO_FILL_MS);room.resultTimer.unref();
+   return;
+ }
+
  const target=room.players.find(p=>p.items.length<room.playerLimit);
  if(!target){room.status='voting';room.autoFillLast=null;touch(room);return;}
  if(room.round>=room.cards.length){
@@ -191,6 +252,15 @@ function autoFillNext(room){
  room.resultTimer=setTimeout(()=>{room.resultTimer=null;autoFillNext(room);},AUTO_FILL_MS);room.resultTimer.unref();
 }
 function prepareRound(room){
+  // Startelf: no auction time remaining, or no valid bid is possible -> show
+  // the penalty draw animation before voting. Keep budget costs unchanged.
+  if(room.mode==='football'&&room.footballVariant==='startelf'){
+    const noMoney=room.players.every(p=>p.budget<1||p.items.length>=11);
+    if(noMoney||room.round>=room.cards.length){
+      if(activateStartelfAutoFill(room))return;
+      cancelTimer(room);room.status='voting';room.open=null;return;
+    }
+  }
   // In the short football mode, finish the other roster before affordability checks.
   if(activateAutoFill(room))return;
   // With no positive bid possible, do not show dead auctions or require two passes.
@@ -202,6 +272,7 @@ function prepareRound(room){
     while(room.round<room.cards.length && room.players.every(p=>!canWinCard(room,p,room.cards[room.round])))room.round++;
   }
   if(room.round>=room.cards.length || (room.mode==='football'&&room.players.every(p=>p.items.length>=footballLimit(room)))){
+    if(activateStartelfAutoFill(room))return;
     cancelTimer(room);room.status='voting';room.open=null;return;
   }
   if(activateAutoFill(room))return;
@@ -263,9 +334,9 @@ function error(res,status,message){send(res,status,{error:message});}
 function bodyOf(req){return new Promise((resolve,reject)=>{let raw='';req.on('data',ch=>{raw+=ch;if(raw.length>16000){reject(new Error('Anfrage zu groß'));req.destroy();}});req.on('end',()=>{try{resolve(JSON.parse(raw||'{}'));}catch{reject(new Error('Ungültige Daten'));}});req.on('error',reject);});}
 function authorizedRoom(code,token,res){const room=rooms.get(code);if(!room){error(res,404,'Dieser Spielraum existiert nicht (mehr).');return null;}if(!room.players.some(p=>p.token===token)){error(res,403,'Du bist nicht in diesem Spielraum angemeldet.');return null;}return room;}
 function serveStatic(req,res,pathname){
-  const files = {'/':'index.html','/index.html':'index.html','/styles.css':'styles.css','/app.js':'app.js','/favicon.svg':'favicon.svg'};
-  const file=files[pathname];if(!file){error(res,404,'Nicht gefunden');return;}
-  const ext=path.extname(file);const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml'}[ext];
+  const files = {'/':'index.html','/index.html':'index.html','/styles.css':'styles.css','/app.js':'app.js','/favicon.svg':'favicon.svg', '/assets/arena-soft.webp':'assets/arena-soft.webp', '/assets/hero-trophy.webp':'assets/hero-trophy.webp','/assets/hero-trophy-integrated.webp':'assets/hero-trophy-integrated.webp', '/assets/mode-football.webp':'assets/mode-football.webp', '/assets/mode-food.webp':'assets/mode-food.webp', '/assets/mode-superhero.webp':'assets/mode-superhero.webp', '/assets/mode-random.webp':'assets/mode-random.webp', '/assets/home-hero-trophy.webp':'assets/home-hero-trophy.webp', '/assets/home-mode-football.webp':'assets/home-mode-football.webp', '/assets/home-mode-food.webp':'assets/home-mode-food.webp', '/assets/home-mode-superhero.webp':'assets/home-mode-superhero.webp', '/assets/home-mode-random.webp':'assets/home-mode-random.webp', '/assets/home-mode-die.svg':'assets/home-mode-die.svg', '/assets/hero-controller-pro.svg':'assets/hero-controller-pro.svg', '/assets/hero-die-pro.svg':'assets/hero-die-pro.svg'};
+  const file=files[pathname] || (/^\/assets\/avatars\/(nova|luna|kai|roxy|ace|milo|juno|zara|rex|ember|shadow|pixel)\.svg$/.test(pathname) ? pathname.slice(1) : null);if(!file){error(res,404,'Nicht gefunden');return;}
+  const ext=path.extname(file);const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.svg':'image/svg+xml','.webp':'image/webp'}[ext];
   fs.readFile(path.join(PUBLIC,file),(err,buf)=>{if(err){error(res,404,'Nicht gefunden');return;}res.writeHead(200,{'Content-Type':mime,'Content-Length':buf.length,'X-Content-Type-Options':'nosniff'});res.end(buf);});
 }
 // Cache image metadata, not image files. Public Wikimedia thumbnails are linked
@@ -286,11 +357,18 @@ async function lookupImage(p){
   try{
     const d=await wikiJSON('en.wikipedia.org',{prop:'pageimages',redirects:'1',titles:p.wiki,piprop:'thumbnail|name',pithumbsize:'360',pilicense:'free'});
     const page=d.query?.pages?.[0];
-    if(!page || page.missing || canonical(page.title)!==canonical(p.wiki))return null;
+    if(!page || page.missing)return null;
+    // Many verified footballer pages redirect to updated titles. A redirect is
+    // only accepted when the Wikipedia API explicitly maps the requested,
+    // manually assigned article title to the returned page (never fuzzy search).
+    const sameTitle=canonical(page.title)===canonical(p.wiki);
+    const redirects=d.query?.redirects||[];
+    const explicitRedirect=redirects.some(r=>canonical(r.from)===canonical(p.wiki)&&canonical(r.to)===canonical(page.title));
+    if(!sameTitle&&!explicitRedirect)return null;
     const url=page.thumbnail?.source;
     // Accept only Wikimedia-served, free images linked to the player's article.
     if(validPhotoUrl(url) && page.pageimage && /\.(?:jpg|jpeg|png|webp)$/i.test(page.pageimage)){
-      return {src:url,source:`https://commons.wikimedia.org/wiki/File:${encodeURIComponent(page.pageimage).replace(/%20/g,'_')}`,provider:'Wikimedia Commons'};
+      return {src:url,source:`https://commons.wikimedia.org/wiki/File:${encodeURIComponent(page.pageimage).replace(/%20/g,'_')}`,article:`https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g,'_'))}`,provider:'Wikimedia Commons'};
     }
   }catch{}
   return null;
@@ -372,7 +450,7 @@ const server = http.createServer(async(req,res)=>{
     if(!player)return error(res,404,'Fußballer nicht gefunden.');
     const found=await getImage(player);return send(res,200,found||{});
   }
-  if(req.method==='GET' && p==='/api/health')return send(res,200,{ok:true,version:'1.7',storage:storage.status(),accountsEnabled:ACCOUNTS_ENABLED});
+  if(req.method==='GET' && p==='/api/health')return send(res,200,{ok:true,version:'1.7.9',storage:storage.status(),accountsEnabled:ACCOUNTS_ENABLED});
   if(p.startsWith('/api/auth/') && !rateLimit(req,'auth',18))return rateLimited(res);
   if(p==='/api/auth/me'&&req.method==='GET'){
     const u=getAuth(req);return u?send(res,200,{user:publicUser(u)}):error(res,401,'Bitte erneut anmelden.');

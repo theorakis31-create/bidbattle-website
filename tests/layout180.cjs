@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const html=fs.readFileSync('public/index.html','utf8');
+const js=fs.readFileSync('public/app.js','utf8');
+const css=fs.readFileSync('public/styles.css','utf8');
+assert.match(html,/src="\/assets\/hero-trophy-integrated.webp"/);
+assert.match(html,/class="hero-art hero-art-173 bb-v18-hero"/);
+assert.ok(fs.statSync('public/assets/hero-trophy-integrated.webp').size>10000);
+assert.match(css,/\.lobby-mode-choice \.lobby-mode-art\{[^}]*align-items:center!important;justify-content:center!important/);
+assert.match(css,/\.bb-podium-main\{display:grid!important;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important/);
+assert.match(js,/function podiumColumn\(p,rank,champion=false\)/);
+assert.match(js,/\$\{podiumParticipant\(p,rank,champion\)\}.*\$\{podiumCollection\(p\)\}/);
+assert.match(js,/\$\{podiumColumn\(runner,'2',false\)\}\$\{podiumColumn\(winner,'1',true\)\}/);
+assert.doesNotMatch(js,/bb-podium-winner-items\"/);
+console.log('PASS 1.8 preview: premium existing 3D hero, centered lobby mode icons, true symmetric 2-column podium');

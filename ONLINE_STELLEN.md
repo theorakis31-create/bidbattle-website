@@ -1,10 +1,14 @@
-# BidBattle 1.7 auf GitHub und Render aktualisieren
+> **Entwicklungsstand 1.7.7:** Bitte diesen Zwischenstand noch nicht bei GitHub/Render veröffentlichen. Wir bündeln das Designupdate wie vereinbart in Version 1.8. Die folgende Anleitung beschreibt lediglich die bisherige Veröffentlichung von Version 1.7.4 und bleibt für den späteren Gesamtdeploy als Referenz erhalten.
+
+**Update von 1.7.3 auf 1.7.4:** Die bestehende Render-Adresse und GitHub-Verbindung bleiben erhalten. Es wird keine neue Datenbank benötigt. Wer Supabase noch nicht eingerichtet hat, kann weiterhin als Gast spielen. Beende laufende Partien vor dem Deploy; ein Neustart unterbricht aktive Spiele. Lade die neuen Dateien aus dem ZIP unter Beibehaltung des `public`-Ordners hoch, und lösche nicht versehentlich bestehende Produktionsdateien.
+
+# BidBattle 1.7.4 auf GitHub und Render aktualisieren
 
 **Vor dem Update:** Laufende Partien beenden. Der bisherige Version-1.6.1-Server hält vorhandene Spielräume nur im Arbeitsspeicher; diese alten Räume lassen sich nicht nach 1.7 migrieren.
 
 ## A. Dateien über GitHub hochladen
 
-1. `BidBattle-Website-v1.7.zip` herunterladen und vollständig entpacken.
+1. `BidBattle-Website-v1.7.4.zip` herunterladen und vollständig entpacken.
 2. GitHub-Repository `bidbattle-website` aufrufen, `Add file` → `Upload files` wählen. **Alle Dateien und Ordner aus dem entpackten Verzeichnis** hochladen, nicht die ZIP selbst. Gleiche Pfade ersetzen; unnötige alte Dateien bei Bedarf separat löschen.
 3. Auf die Pfade achten: `server.js`, `football.js`, `storage.js`, `package.json`, `render.yaml` und `schema.sql` liegen im Repo-Hauptordner. Im Unterordner `public/` liegen `app.js`, `index.html`, `styles.css`, `favicon.svg`.
 4. **Commit directly to main** wählen, dann `Commit changes`.

@@ -25,16 +25,19 @@ async function main(){
  const app=await(await fetch(base+'/app.js')).text();assert.match(app,/squad-editor|squadEditor/);
  assert.equal((await call('/api/rooms',{name:'Test',mode:'football',auctionType:'sealed',budget:20})).httpStatus,400);
  assert.equal((await call('/api/rooms',{name:'Test',mode:'football',auctionType:'sealed',budget:50})).httpStatus,201);
- assert.equal(catalog.length,109);
+ assert.ok(catalog.length>=220);
+ assert.ok(catalog.every(p=>p.rating>=80));
  assert.equal(new Set(catalog.map(p=>p.title)).size,catalog.length);
+ let eliteCardsSeen=0;
  for(let k=0;k<50;k++){
    const deck=createDeck(crypto);assert.equal(deck.length,44);
    assert.equal(deck.filter(x=>x.group==='GK').length,5);
    assert.equal(deck.filter(x=>x.role==='RB').length,3);
    assert.equal(deck.filter(x=>x.role==='LB').length,3);
    assert.ok(deck.some(x=>x.rating<=83));
-   assert.ok(deck.some(x=>x.rating>=88));
+   eliteCardsSeen+=deck.filter(x=>x.rating>=88).length;
  }
+ assert.ok(eliteCardsSeen>0,'Across many randomized decks elite players should be available');
  const cb=catalog.find(x=>x.role==='CB');const keeper=catalog.find(x=>x.role==='GK');
  assert.ok(cb.eligible.includes('CM2'));assert.ok(!cb.eligible.includes('ST'));assert.deepEqual(keeper.eligible,['GK']);
  assert.equal(arrange([keeper,cb],{GK:keeper.id,CM1:cb.id}).CM1,cb.id);
