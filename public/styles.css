@@ -1094,3 +1094,16 @@ body:has(.lobby-stage) #navModes{background:#efe7ff;color:#673be5}
 @media(max-width:750px){
   .bb-onboard-aside .bb-onboard-art > #bbOnboardModeArt{font-size:52px}
 }
+
+/* Food Creator: small, deliberate addition to the approved settings design. */
+.food-dish-fields,.lobby-food-choice{background:linear-gradient(115deg,#f7f3ff,#f0f5ff);border:1px solid #dfdcff;border-radius:15px;padding:13px 15px;margin:12px 0;}
+.food-dish-fields label,.lobby-food-choice label{display:block;color:#2b305e;font-weight:800;margin-bottom:7px;}
+.food-dish-fields select,.lobby-food-choice select{width:100%;min-height:42px;border:1px solid #bfc4ed;border-radius:10px;padding:8px;background:#fff;color:#282a59;font-weight:650;}
+.lobby-food-choice p{margin:7px 0 0;color:#535b8f;font-size:12px;line-height:1.5;}
+.food-dish-fields.hidden,.lobby-food-choice.hidden{display:none!important;}
+
+/* Food Creator: chronological kitchen steps, readable on mobile */
+.bb-food-stage{display:flex;align-items:center;flex-wrap:wrap;gap:7px 12px;background:#f5f0ff;border:1px solid #ddd0fb;border-radius:14px;padding:11px 15px;margin:0 0 12px;color:#4f3296;font-size:12px;line-height:1.45}
+.bb-food-stage strong{font-size:13px;white-space:nowrap}.bb-food-stage span{color:#62618a}
+.bb-food-stage-next{background:#f2fbf7;border-color:#c7e6d5;color:#236b50}
+@media(max-width:600px){.bb-food-stage{padding:10px 12px;gap:4px 8px}.bb-food-stage strong{font-size:12px}.bb-food-stage span{font-size:11px;width:100%}}

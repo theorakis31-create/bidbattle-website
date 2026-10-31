@@ -1,3 +1,5 @@
+**Aktueller Stand:** Food Creator 1.8.1 erweitert den letzten 1.8-Entwicklungsstand. Informationen unten zum Vergleich mit 1.7.9.2 sind historische Vorsichtshinweise; neue Food-Logik und Katalogdaten stehen in `FOOD-CREATOR-README.md`.
+
 # BidBattle 1.8 – lokaler Entwicklungsstand
 
 **WICHTIG: Dies ist ein Vorschau-/Integrationsstand, kein finaler 1.8-Release.**

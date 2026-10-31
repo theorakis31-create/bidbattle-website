@@ -44,12 +44,12 @@ async function main(){
  assert.equal(arrange([keeper,catalog.find(x=>x.role==='GK'&&x.id!==keeper.id)]),null);
  console.log('PASS: football pool, ratings, legal formations and budget restrictions');
 
- let x=await create('food','sealed',20);
+ let x=await create('hero','sealed',20);
  await act(x.a,'bid',{amount:5});let r=await act(x.b,'bid',{amount:5});assert.equal(r.status,'tiebreak');
  await act(x.a,'bid',{amount:3});r=await act(x.b,'bid',{amount:3});assert.equal(r.lastResult.reason,'double-tie');
  assert.equal(r.players[0].items.length,0);assert.equal(r.players[1].budget,20);
  await waitFor(x.a,s=>s.round===1);
- console.log('PASS: food sealed tie and no arbitrary winner');
+ console.log('PASS: standard sealed tie and no arbitrary winner (foundation guarantee tested separately)');
 
  x=await create('football','sealed',50);
  r=await state(x.a);assert.equal(r.total,44);assert.ok(r.card.rating>=79);assert.equal(r.budget,50);

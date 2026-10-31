@@ -1,3 +1,11 @@
+# BidBattle – Food Creator (1.8.1, Entwicklungsstand)
+
+**Neu:** Der frühere Food Battle heißt jetzt **Food Creator**. Beim Erstellen und in der Lobby kann der Host `Zufall`, `Burger`, `Pizza`, `Pasta` oder `Hotdog` wählen. Für diese vier Gerichte gibt es **215 getrennte Zutaten** in `data/food/*.json`; beide Mitspieler erhalten ein gemeinsames Gericht pro Partie. Die vorhandenen Spielmodi, das aktuelle Layout und die Spielregeln bleiben erhalten. Siehe [FOOD-CREATOR-README.md](FOOD-CREATOR-README.md).
+
+**Status:** Lokaler, getesteter Zwischenstand – noch kein GitHub-/Render-Upload. Die bisherigen Versionsnotizen stehen aus historischen Gründen darunter und beschreiben teilweise ältere Food-/Avatar-Zustände.
+
+---
+
 # BidBattle – Version 1.8 (GitHub-Review, noch nicht veröffentlicht)
 
 > **Integrationsstand:** Umgesetzt sind der originale Premium-Pokal, die zentrierten Modus-Emojis inklusive des großen Vorschau-Symbols, das symmetrische Zweierpodium und Layout-Regressionsprüfungen. Der Quellstand **1.7.9.2 fehlt**; Basis ist 1.7.9.1. **Vor Merge nach `main` unbedingt `CHECKLISTE-1.8.md` und `GITHUB-UPLOAD-ANLEITUNG.md` beachten.**
@@ -182,3 +190,8 @@ Weitere geplante Funktionen (Kitchen Battle mit Burger/Pizza/Pasta, limits für 
 - Avatar-Auswahl zurück auf Emojis; Legacy-IDs werden weiterhin angezeigt.
 - Startseite: vollständiges Pokal-Motiv mit BidBattle-Schriftzug, Controller links und geometrisch korrektem lila Würfel rechts, responsive.
 - Spielablauf und Multiplayer unverändert.
+
+
+### Food Creator 1.8.2
+
+Food Creator bietet zuerst **2 Grundlagen** an; jeder Spieler erhält garantiert eine, bevor Soßen und Beläge kommen. Die weiteren 10 Zutatenangebote sind nach Gericht in sinnvolle Kategorien geordnet. Im Hauptmenü wird Food Creator durch 🍽️ dargestellt. Details: `AENDERUNGEN-1.8.2.md`.

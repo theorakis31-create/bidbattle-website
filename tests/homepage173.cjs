@@ -24,5 +24,5 @@ assert.match(css,/HOME-ONLY DESIGN SYSTEM/);
 assert.match(css,/@media\(max-width:520px\)/);
 assert.match(app,/\$\('#navModes'\)\.addEventListener/);
 assert.ok(!html.includes('Bestenliste') && !html.includes('href=\"#friends\"'),'do not include placeholder navigation');
-assert.ok(html.includes('Ersteigere Zutaten für den besten Burger'),'current food mechanics reflected in text');
+assert.ok(html.includes('Starte mit der Grundlage und baue Burger, Pizza, Pasta oder Hotdog.'),'four new food recipes reflected in text');
 console.log('PASS 1.7.3 homepage, game links and all bundled artwork');

@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {SLOTS,catalog,byId,createDeck,arrange,canAcquire,ratingStats} = require('./football');
 const storage = require('./storage');
+const {CATALOGS, FOOD_DISHES, FOOD_CHOICES, chooseDish, createFoodDeck, catalogSummary, FOOD_FOUNDATION_TYPES} = require('./food');
 const users = new Map();
 const limiter = new Map();
 
@@ -21,12 +22,14 @@ const AVATARS = ['nova','luna','kai','roxy','ace','milo','juno','zara','rex','em
 const AVATAR_COLORS = ['lilac','blue','peach','mint','pink','yellow'];
 function safeAvatar(v) {return AVATARS.includes(v) ? v : '🙂';}
 function safeColor(v) {return AVATAR_COLORS.includes(v) ? v : 'lilac';}
-const LABELS = {food: 'Food Battle', football: 'Football Draft', hero: 'Superhero Showdown', random: 'Random Battle'};
+const LABELS = {food: 'Food Creator', football: 'Football Draft', hero: 'Superhero Showdown', random: 'Random Battle'};
 const FOOTBALL_VARIANTS = {startelf: 'Startelf', byp: 'Bid Your Player'};
 function footballLimit(room) {return room.footballVariant==='byp'?room.playerLimit:11;}
 const TIME_LIMITS=[0,10,15,30,60];
 function parseSettings(b){
  const mode=b.mode, variant=mode==='football'?(b.footballVariant||'startelf'):null;
+ const foodChoice=mode==='food'?(b.foodChoice??'burger'):null;
+ if(mode==='food'&&!FOOD_CHOICES.includes(foodChoice))throw Error('Wähle Zufall, Burger, Pizza, Pasta oder Hotdog.');
  if(!Object.hasOwn(LABELS,mode))throw Error('Unbekannter Spielmodus.');
  if(mode==='football'&&!Object.hasOwn(FOOTBALL_VARIANTS,variant))throw Error('Unbekannte Fußball-Variante.');
  const playerLimit=variant==='byp'?Number(b.playerLimit):11;
@@ -36,9 +39,10 @@ function parseSettings(b){
  if(!['sealed','open'].includes(b.auctionType))throw Error('Ungültige Auktionsart.');
  const timeLimit=b.timeLimit===undefined?15:Number(b.timeLimit);
  if(!TIME_LIMITS.includes(timeLimit))throw Error('Ungültiges Zeitlimit.');
- return {mode,footballVariant:variant,playerLimit,startBudget:budget,auctionType:b.auctionType,timeLimit};
+ return {mode,footballVariant:variant,playerLimit,startBudget:budget,auctionType:b.auctionType,timeLimit,foodChoice,foodDish:null};
 }
 function newDeck(room){
+ if(room.mode==='food'){room.foodDish=(room.foodChoice==='random' && Object.hasOwn(FOOD_DISHES,room.foodDish||''))?room.foodDish:chooseDish(room.foodChoice||'burger');return createFoodDeck(room.foodDish);}
  if(room.mode!=='football')return shuffle(CATALOG[room.mode]).slice(0,12);
  const recent=new Set((room.deckHistory||[]).flat());
  if(room.footballVariant==='startelf')return createDeck(crypto,recent);
@@ -47,31 +51,25 @@ function newDeck(room){
  return [...fresh,...older].slice(0,room.playerLimit*4);
 }
 function cancelTimer(room){if(room.timer)clearTimeout(room.timer);room.timer=null;room.deadline=null;room.timerSeq=(room.timerSeq||0)+1;}
-function resetMatch(room){cancelTimer(room);if(room.countdownTimer)clearTimeout(room.countdownTimer);room.countdownTimer=null;if(room.resultTimer)clearTimeout(room.resultTimer);room.resultTimer=null;if(room.disconnectTimer)clearTimeout(room.disconnectTimer);room.disconnectTimer=null;room.paused=false;room.wasLive=false;room.pauseRemaining=null;room.countdownEnds=null;
+function resetMatch(room){const previousStatus=room.status;cancelTimer(room);if(room.countdownTimer)clearTimeout(room.countdownTimer);room.countdownTimer=null;if(room.resultTimer)clearTimeout(room.resultTimer);room.resultTimer=null;if(room.disconnectTimer)clearTimeout(room.disconnectTimer);room.disconnectTimer=null;room.paused=false;room.wasLive=false;room.pauseRemaining=null;room.countdownEnds=null;
  if(room.mode==='football' && room.cards?.length && room.round>0){
    room.deckHistory=[...(room.deckHistory||[]).slice(-1),room.cards.map(c=>c.id)];
  }
+ if(room.mode==='food' && room.foodChoice==='random' && previousStatus!=='waiting')room.foodDish=null;
  room.players.forEach(p=>{p.budget=room.startBudget;p.items=[];p.lineup={};});room.cards=newDeck(room);
  room.round=0;room.status='waiting';room.bids=new Map();room.votes=new Map();room.lastResult=null;room.tieInfo=null;room.open=null;room.winner=null;room.lastAuctionWinnerId=null;room.autoFillLast=null;room.autoFillQueue=[];room.autoFillReason=null;room.ready=new Set();room.notice=null;room.tieBreakReason=null;
 }
 
-function canWinCard(room, player, card) {return room.mode!=='football'||(room.footballVariant==='byp' ? player.items.length<room.playerLimit && player.budget>=1 : canAcquire(player,card));}
+function isFoodFoundation(room, card=room.cards?.[room.round]) {
+ return room.mode==='food' && room.round<2 && card?.type===FOOD_FOUNDATION_TYPES[room.foodDish];
+}
+function alreadyHasFoodFoundation(room, player) {
+ return player.items.some(i=>i.type===FOOD_FOUNDATION_TYPES[room.foodDish]);
+}
+function canWinCard(room, player, card) {if(isFoodFoundation(room,card))return !alreadyHasFoodFoundation(room,player);
+ return room.mode!=='football'||(room.footballVariant==='byp' ? player.items.length<room.playerLimit && player.budget>=1 : canAcquire(player,card));}
 function item(title, emoji, type, detail) { return {title, emoji, type, detail}; }
 const CATALOG = {
-  food: [
-    item('Brioche-Brötchen','🍞','Brot','Goldbraun und fluffig'),
-    item('Smash-Patty','🥩','Patty','Saftig und knusprig gebraten'),
-    item('Cheddar','🧀','Käse','Extra cremig'),
-    item('Karamellisierte Zwiebeln','🧅','Topping','Süß und würzig'),
-    item('Frischer Salat','🥬','Gemüse','Knackiger Crunch'),
-    item('Geheime Burgersoße','🥫','Soße','Der Geschmackskick'),
-    item('Wagyu-Patty','🍔','Premium','Luxuriöses Upgrade'),
-    item('Knuspriger Bacon','🥓','Topping','Rauchige Note'),
-    item('Tomatenscheiben','🍅','Gemüse','Frisch und saftig'),
-    item('Jalapeños','🌶️','Extra','Feurig scharf'),
-    item('Trüffel-Mayo','🍄','Soße','Fein und aromatisch'),
-    item('Sesam-Brötchen','🥯','Brot','Der Klassiker')
-  ],
   football: [
     item('Lionel Messi','🇦🇷','Angriff','Argentinien · Kreativität & Abschluss'),
     item('Cristiano Ronaldo','🇵🇹','Angriff','Portugal · Torjäger'),
@@ -134,6 +132,8 @@ function publicState(room, token) {
   return {
     code:room.code, mode:room.mode, modeLabel:room.mode==='football'?FOOTBALL_VARIANTS[room.footballVariant]:LABELS[room.mode], status:room.status, paused:!!room.paused, countdownEnds:room.countdownEnds||null, tieBreakReason:room.tieBreakReason||null, storageKind:storage.status().kind,
     footballVariant:room.mode==='football'?room.footballVariant:null, playerLimit:room.mode==='football'?footballLimit(room):null,
+    foodChoice:room.mode==='food'?(room.foodChoice||'burger'):null, foodDish:room.mode==='food'?(room.foodDish||'burger'):null,
+    foodDishLabel:room.mode==='food'?FOOD_DISHES[room.foodDish||'burger'].name:null, foodPoolSize:room.mode==='food'?CATALOGS[room.foodDish||'burger'].length:null,
     budget:room.startBudget, auctionType:room.auctionType, timeLimit:room.timeLimit, deadline:room.deadline, hostId:room.hostId, isHost:own.id===room.hostId, round:room.round, total:room.cards.length, autoFillLast:room.status==='autofill'?room.autoFillLast:null, autoFillReason:room.status==='autofill'?(room.autoFillReason||'byp'):null, autoFillRemaining:room.status==='autofill'?(room.autoFillQueue?.length||0):0,
     open:room.auctionType === 'open' && room.status === 'bidding' ? {
       currentBid:room.open.currentBid,
@@ -143,6 +143,8 @@ function publicState(room, token) {
     } : null,
     tieInfo:room.status === 'tiebreak' ? room.tieInfo : null,
     card:['bidding', 'tiebreak', 'reveal'].includes(room.status) ? room.cards[room.round] : null,
+    foodFoundationPhase:isFoodFoundation(room),
+    foodCanBid:room.mode==='food' && isFoodFoundation(room) ? !alreadyHasFoodFoundation(room,own) : true,
     footballSlots:room.mode==='football'&&room.footballVariant==='startelf'?SLOTS:null, playerPoolSize:room.mode==='football'?catalog.length:null,
     footballCanBuy:room.mode==='football' && room.cards[room.round] ? Object.fromEntries(room.players.map(p=>[p.id,canWinCard(room,p,room.cards[room.round])])) : null,
     players:room.players.map(p => ({id:p.id,name:p.name,avatar:p.avatar,avatarColor:p.avatarColor,online:[...(room.clients||[])].some(c=>c.playerId===p.id),budget:p.budget,items:p.items,lineup:p.lineup,stats:room.mode==='football'?ratingStats(p):null,hasBid:room.bids.has(p.id),hasVoted:room.votes.has(p.id)})),
@@ -158,7 +160,7 @@ function initialOpen(room) {
   const winnerStarter=room.mode==='football'&&room.footballVariant==='byp'?room.players.find(p=>p.id===room.lastAuctionWinnerId):null;
   const first=winnerStarter||room.players[room.round % 2];
   const other=room.players.find(x=>x.id!==first.id);
-  const eligible=p=>room.mode!=='football'||canWinCard(room,p,room.cards[room.round]);
+  const eligible=p=>canWinCard(room,p,room.cards[room.round]);
   room.open={currentBid:0,leaderId:null,turnId:eligible(first)?first.id:other.id,emptyPasses:0,history:[]};
 }
 function armDeadline(room,overrideMs){
@@ -278,7 +280,7 @@ function prepareRound(room){
   if(activateAutoFill(room))return;
   room.status='bidding';
   if(room.auctionType==='open')initialOpen(room);
-  else if(room.mode==='football'){
+  else if(room.mode==='football'||isFoodFoundation(room)){
     for(const p of room.players)if(!canWinCard(room,p,room.cards[room.round]))room.bids.set(p.id,0);
   }
   armDeadline(room);
@@ -293,6 +295,13 @@ function advanceRound(room) {
 }
 function finishAuction(room, winner, amount, reason, bids=[]) {
   cancelTimer(room);
+  // Nobody may be left without the basic dough/bun/pasta. If both pass or
+  // bidding ties twice, give the foundation for free to a player lacking one.
+  if (isFoodFoundation(room) && !winner) {
+    const missing=room.players.filter(p=>!alreadyHasFoodFoundation(room,p));
+    winner=missing[0]||null;
+    if(winner){amount=0;reason='food-foundation-free';}
+  }
   room.lastAuctionWinnerId=winner?.id||null;
   const currentCard=room.cards[room.round];
   if(winner){
@@ -312,8 +321,9 @@ function finishAuction(room, winner, amount, reason, bids=[]) {
 function applyOpenPass(room,own){
  room.open.history.push({id:own.id,name:own.name,pass:true});
  if(room.open.leaderId){const winner=room.players.find(p=>p.id===room.open.leaderId);finishAuction(room,winner,room.open.currentBid,'win');}
- else{room.open.emptyPasses++;if(room.open.emptyPasses===2)finishAuction(room,null,0,'passed');
- else{room.open.turnId=room.players.find(p=>p.id!==own.id).id;armDeadline(room);}}
+ else{room.open.emptyPasses++;const other=room.players.find(p=>p.id!==own.id);
+  if(room.open.emptyPasses===2 || !canWinCard(room,other,room.cards[room.round]))finishAuction(room,null,0,'passed');
+  else{room.open.turnId=other.id;armDeadline(room);}}
 }
 function settleSealed(room) {
   const [a,b]=room.players, aa=room.bids.get(a.id),bb=room.bids.get(b.id);
@@ -450,7 +460,12 @@ const server = http.createServer(async(req,res)=>{
     if(!player)return error(res,404,'Fußballer nicht gefunden.');
     const found=await getImage(player);return send(res,200,found||{});
   }
-  if(req.method==='GET' && p==='/api/health')return send(res,200,{ok:true,version:'1.7.9',storage:storage.status(),accountsEnabled:ACCOUNTS_ENABLED});
+  if(req.method==='GET' && p==='/api/food/catalog'){
+    const dish=u.searchParams.get('dish');
+    if(dish && !Object.hasOwn(FOOD_DISHES,dish))return error(res,400,'Unbekanntes Gericht.');
+    return send(res,200,dish?{dish,...FOOD_DISHES[dish],count:CATALOGS[dish].length,ingredients:CATALOGS[dish]}:{dishes:catalogSummary()});
+  }
+  if(req.method==='GET' && p==='/api/health')return send(res,200,{ok:true,version:'1.8-food-creator',storage:storage.status(),accountsEnabled:ACCOUNTS_ENABLED});
   if(p.startsWith('/api/auth/') && !rateLimit(req,'auth',18))return rateLimited(res);
   if(p==='/api/auth/me'&&req.method==='GET'){
     const u=getAuth(req);return u?send(res,200,{user:publicUser(u)}):error(res,401,'Bitte erneut anmelden.');
@@ -579,6 +594,7 @@ const server = http.createServer(async(req,res)=>{
           if(room.status!=='bidding' && room.status!=='tiebreak')return error(res,409,'Diese Auktion ist nicht mehr aktiv.');
           if(!Number.isSafeInteger(b.amount) || b.amount<0 || b.amount>own.budget)return error(res,400,'Dein Gebot muss zwischen 0 und deinem Restbudget liegen.');
           if(room.mode==='football' && b.amount>0 && !canWinCard(room,own,room.cards[room.round]))return error(res,409,'Für diesen Fußballer ist in deiner Mannschaft kein zulässiger Platz mehr frei.');
+          if(isFoodFoundation(room) && !canWinCard(room,own,room.cards[room.round]))return error(res,409,'Du hast bereits eine Grundlage. Jetzt ist dein Mitspieler dran.');
           if(room.auctionType==='sealed'){
             if(room.bids.has(own.id))return error(res,409,'Du hast bereits geboten.');
             room.bids.set(own.id,b.amount);
@@ -589,7 +605,7 @@ const server = http.createServer(async(req,res)=>{
             room.open.currentBid=b.amount;room.open.leaderId=own.id;room.open.emptyPasses=0;
             room.open.history.push({id:own.id,name:own.name,amount:b.amount});
             const rival=room.players.find(p=>p.id!==own.id);
-            if(rival.budget<=b.amount || (room.mode==='football'&&!canWinCard(room,rival,room.cards[room.round]))){finishAuction(room,own,b.amount,'win');}
+            if(rival.budget<=b.amount || (!canWinCard(room,rival,room.cards[room.round]))){finishAuction(room,own,b.amount,'win');}
             else {room.open.turnId=rival.id;armDeadline(room);}
           }
           touch(room);return send(res,200,publicState(room,b.token));

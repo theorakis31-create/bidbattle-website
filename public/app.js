@@ -2,12 +2,15 @@
 (() => {
   const $ = (sel, root=document) => root.querySelector(sel);
   const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
-  const names = {food:'Food Battle',football:'Football Draft',hero:'Superhero Showdown',random:'Random Battle'};
+  const names = {food:'Food Creator',football:'Football Draft',hero:'Superhero Showdown',random:'Random Battle'};
   const variantNames={startelf:'Startelf',byp:'Bid Your Player'};
   const isShort=()=>current?.mode==='football'&&current.footballVariant==='byp';
   const elite=card=>card?.rating>=88;
   const limit=()=>current?.playerLimit||11;
-  const modeIcons = {food:'🍔',football:'⚽',hero:'🦸',random:'🎲'};
+  const modeIcons = {food:'🍽️',football:'⚽',hero:'🦸',random:'🎲'};
+  const foodDishes={burger:['Burger','🍔'],pizza:['Pizza','🍕'],pasta:['Pasta','🍝'],hotdog:['Hotdog','🌭']};
+  const foodOptions=[['random','🎲 Zufall – ein Gericht wird ausgelost'],...Object.entries(foodDishes).map(([id,[label,emoji]])=>[id,`${emoji} ${label}`])];
+  const chosenFoodLabel=()=>current?.mode==='food'?`${foodDishes[current.foodDish]?.[1]||'🍔'} ${foodDishes[current.foodDish]?.[0]||'Burger'}`:'';
   let session = null;
   let current = null;
   let events = null;
@@ -92,8 +95,10 @@
   }
   function updateOnboardMode(){
     const mode=$('#createMode').value;
-    $('#bbOnboardModeTitle').textContent=names[mode];
-    const art=$('#bbOnboardModeArt'); if(art){art.textContent=modeIcons[mode];art.setAttribute('aria-label',names[mode]);}
+    const selectedFood=$('#createFoodChoice')?.value||'random';
+    const subDish=selectedFood==='random'?null:foodDishes[selectedFood];
+    $('#bbOnboardModeTitle').textContent=mode==='food'&&subDish?`Food Creator · ${subDish[0]}`:names[mode];
+    const art=$('#bbOnboardModeArt'); if(art){art.textContent=mode==='food'&&subDish?subDish[1]:modeIcons[mode];art.setAttribute('aria-label',names[mode]);}
     const descriptions={football:'Ersteigere echte Fußballer und stelle dein Team zusammen.',food:'Ersteigere Zutaten und kreiere dein Lieblingsgericht.',hero:'Ersteigere Superkräfte für deinen eigenen Helden.',random:'Unvorhersehbare Challenges und jede Menge Spielspaß.'};
     $('#bbOnboardModeCaption').textContent=descriptions[mode];
   }
@@ -103,6 +108,7 @@
     $('#createName').value=savedName();
     $('#createMode').value=directModeSelected?mode:'football';
     $('#createFootballVariant').value=variant||'startelf';
+    $('#createFoodChoice').value='random';
     $('#bbCreateModeChooser').classList.toggle('hidden',directModeSelected);
     $('#createBudget').value='';updateOnboardMode();updateBudgetOptions();setCreateStep(1);openDialog('createDialog');renderOnboardingPreview();
   }
@@ -130,7 +136,7 @@
   async function refresh(){if(!session)return;current=await request(`/api/rooms/${session.code}?token=${encodeURIComponent(session.token)}`);render();}
   async function enter(info){saveSession(info);current=info.state;closeDialogs();showGame();render();connect();}
    function auctionName(){return current.auctionType==='open'?'👀 Offen überbieten':'🙈 Blind bieten';}
-   function header(){return `<div class="game-hero"><div class="game-hero-copy"><h1 class="game-title">${modeIcons[current.mode]} ${escape(current.modeLabel)}</h1><p class="game-subtitle">Spielraum <strong>${current.code}</strong> · ${current.budget} € virtuelles Startbudget · 1 gegen 1</p></div><div class="game-hero-chips"><span class="game-hero-chip game-hero-chip-primary">${auctionName()}</span><span class="game-hero-chip">${current.timeLimit?`${current.timeLimit} Sekunden`:'Ohne Zeitlimit'}</span><span class="game-hero-chip">${current.mode==='football' ? (isShort()?`${limit()} Spieler`:'Startelf') : 'Fun-Modus'}</span></div></div>`;}
+   function header(){return `<div class="game-hero"><div class="game-hero-copy"><h1 class="game-title">${current.mode==='food'?foodDishes[current.foodDish]?.[1]||'🍔':modeIcons[current.mode]} ${escape(current.modeLabel)}${current.mode==='food'?` · ${escape(chosenFoodLabel())}`:''}</h1><p class="game-subtitle">Spielraum <strong>${current.code}</strong> · ${current.budget} € virtuelles Startbudget · 1 gegen 1</p></div><div class="game-hero-chips"><span class="game-hero-chip game-hero-chip-primary">${auctionName()}</span><span class="game-hero-chip">${current.timeLimit?`${current.timeLimit} Sekunden`:'Ohne Zeitlimit'}</span><span class="game-hero-chip">${current.mode==='food'?escape(chosenFoodLabel()):current.mode==='football' ? (isShort()?`${limit()} Spieler`:'Startelf') : 'Fun-Modus'}</span></div></div>`;}
   function players(){return current.players;}
   function me(){return players().find(p=>p.id===current.ownId);}
   function other(){return players().find(p=>p.id!==current.ownId);}
@@ -198,15 +204,15 @@
    function dropdownOptions(options,selected){return options.map(([v,t])=>`<option value="${v}" ${String(v)===String(selected)?'selected':''}>${t}</option>`).join('');}
    const budgetList=(mode,variant)=>mode==='football'?(variant==='byp'?[[20,'20 € · Klassiker'],[30,'30 €'],[40,'40 €'],[50,'50 € · Extrem']]:[[50,'50 €'],[75,'75 €'],[100,'100 €']]):[[10,'10 €'],[20,'20 €'],[30,'30 €'],[50,'50 €']];
    const timeList=[[15,'15 Sekunden · Standard'],[10,'10 Sekunden · Extrem'],[30,'30 Sekunden'],[60,'60 Sekunden · Entspannt'],[0,'Ohne Zeitlimit']];
-   const lobbyModes=[['football','Football Draft','⚽'],['food','Food Battle','🍔'],['hero','Superhero','🦸'],['random','Random Battle','🎲']];
+   const lobbyModes=[['football','Football Draft','⚽'],['food','Food Creator','🍽️'],['hero','Superhero','🦸'],['random','Random Battle','🎲']];
    function lobbyEditor(){
      const tiles=lobbyModes.map(([id,title,icon])=>`<button type="button" class="lobby-mode-choice lobby-mode-${id} ${current.mode===id?'selected':''}" data-lobby-mode="${id}" aria-pressed="${current.mode===id}"><span class="lobby-mode-art"><span class="lobby-mode-emoji" aria-hidden="true">${icon}</span></span><b>${escape(title)}</b><span class="lobby-mode-check" aria-hidden="true">✓</span></button>`).join('');
      return `<form id="lobbySettings" class="lobby-config lobby-editor-174">
        <div class="lobby-editor-head"><span class="lobby-overline">⚙️ SPIELEINSTELLUNGEN</span><p>Nur der Host ändert die Regeln. Dein Mitspieler sieht sie nach dem Speichern.</p></div>
        <label class="lobby-mode-label" for="lobbyMode">🎮 Spielmodus auswählen</label>
        <div class="lobby-mode-grid">${tiles}</div>
-       <label class="lobby-native-mode-label" for="lobbyMode">Spielmodus <select name="lobbyMode" id="lobbyMode">${dropdownOptions([['football','⚽ Football Draft'],['food','🍔 Food Battle'],['hero','🦸 Superhero'],['random','🎲 Random Battle']],current.mode)}</select></label>
-       <div class="lobby-settings-grid"><label id="lobbyVariantWrap" class="${current.mode==='football'?'':'hidden'}">Fußball-Variante<select name="lobbyVariant" id="lobbyVariant">${dropdownOptions([['startelf','🏟️ Startelf'],['byp','🃏 Bid Your Player']],current.footballVariant)}</select></label><label id="lobbyLimitWrap" class="${isShort()?'':'hidden'}">Spieler pro Person<select name="lobbyLimit" id="lobbyLimit">${dropdownOptions([[3,'3 Spieler'],[4,'4 Spieler'],[5,'5 Spieler']],current.playerLimit)}</select></label><label>🪙 Startbudget<select id="lobbyBudget" name="lobbyBudget">${dropdownOptions(budgetList(current.mode,current.footballVariant),current.budget)}</select></label><label>⚒️ Auktionsart<select id="lobbyAuction" name="lobbyAuction">${dropdownOptions([['sealed','🙈 Blind bieten'],['open','👀 Offen überbieten']],current.auctionType)}</select></label><label>⏱️ Zeit pro Gebot<select id="lobbyTime" name="lobbyTime">${dropdownOptions(timeList,current.timeLimit)}</select></label></div>
+       <label class="lobby-native-mode-label" for="lobbyMode">Spielmodus <select name="lobbyMode" id="lobbyMode">${dropdownOptions([['football','⚽ Football Draft'],['food','🍽️ Food Creator'],['hero','🦸 Superhero'],['random','🎲 Random Battle']],current.mode)}</select></label>
+       <div class="lobby-food-choice ${current.mode==='food'?'':'hidden'}" id="lobbyFoodFields"><label for="lobbyFoodChoice">🍽️ Was wollt ihr zubereiten?</label><select id="lobbyFoodChoice" name="lobbyFoodChoice">${dropdownOptions(foodOptions,current.mode==='food'?(current.foodChoice||'burger'):'random')}</select><p>🎲 Zufall lost für beide Spieler ein gemeinsames Gericht aus. ${current.mode==='food'?`Aktuell: <strong>${escape(chosenFoodLabel())}</strong> · ${current.foodPoolSize||0} mögliche Zutaten.`:'Das Gericht wird beim Speichern ausgewählt.'}</p></div><div class="lobby-settings-grid"><label id="lobbyVariantWrap" class="${current.mode==='football'?'':'hidden'}">Fußball-Variante<select name="lobbyVariant" id="lobbyVariant">${dropdownOptions([['startelf','🏟️ Startelf'],['byp','🃏 Bid Your Player']],current.footballVariant)}</select></label><label id="lobbyLimitWrap" class="${isShort()?'':'hidden'}">Spieler pro Person<select name="lobbyLimit" id="lobbyLimit">${dropdownOptions([[3,'3 Spieler'],[4,'4 Spieler'],[5,'5 Spieler']],current.playerLimit)}</select></label><label>🪙 Startbudget<select id="lobbyBudget" name="lobbyBudget">${dropdownOptions(budgetList(current.mode,current.footballVariant),current.budget)}</select></label><label>⚒️ Auktionsart<select id="lobbyAuction" name="lobbyAuction">${dropdownOptions([['sealed','🙈 Blind bieten'],['open','👀 Offen überbieten']],current.auctionType)}</select></label><label>⏱️ Zeit pro Gebot<select id="lobbyTime" name="lobbyTime">${dropdownOptions(timeList,current.timeLimit)}</select></label></div>
        <button type="submit" class="btn btn-white btn-full lobby-save-btn">✓ Einstellungen speichern</button>
      </form>`;
    }
@@ -214,7 +220,7 @@
      const full=players().length===2;
      const seats=players().map((p,i)=>`<section class="lobby-stage-player ${p.id===current.hostId?'host':''}"><div class="lobby-player-top"><span class="player-crown">${p.id===current.hostId?'👑':''}</span><span class="lobby-person-status ${p.online?'is-online':''}">${p.online?'● Online':'○ Verbindung offen'}</span></div><div class="lobby-stage-face avatar-${escape(p.avatarColor)}">${avatarContent(p.avatar)}</div><div class="lobby-stage-name">${escape(p.name)}</div><div class="lobby-stage-role">${p.id===current.hostId?'Host':'Mitspieler'}${p.id===current.ownId?' · Du':''}</div><div class="lobby-stage-meta"><span>${p.id===current.hostId?'👑 Leitet das Duell':'🤝 Mitspieler'}</span><span>${i+1} / 2</span></div></section>`);
      if(!full)seats.push(`<section class="lobby-stage-player lobby-empty-seat"><div class="lobby-player-top"><span></span><span class="lobby-person-status">○ Platz frei</span></div><div class="lobby-stage-face lobby-empty-face">👋</div><div class="lobby-stage-name">Spieler 2</div><div class="lobby-stage-role">Warte auf deinen Mitspieler …</div><div class="lobby-stage-meta"><span>🔗 Lade einen Freund ein</span></div></section>`);
-     const cfg=current.isHost?lobbyEditor():`<section class="lobby-config lobby-readonly"><span class="lobby-overline">⚙️ AKTUELLE SPIELEINSTELLUNGEN</span><div class="lobby-mode-readonly"><span>${modeIcons[current.mode]}</span><strong>${escape(current.modeLabel)}</strong></div><div class="lobby-readonly-list"><span>🪙 Budget pro Spieler <b>${current.budget} €</b></span><span>⚒️ Auktionsart <b>${auctionName()}</b></span><span>⏱️ Zeitlimit <b>${current.timeLimit?`${current.timeLimit} Sekunden`:'Ohne Zeitlimit'}</b></span>${current.mode==='football'?`<span>⚽ Variante <b>${isShort()?`Bid Your Player · ${limit()} Spieler`:'Startelf · 4-3-3'}</b></span>`:''}</div><p class="muted">Der Host kann die Einstellungen vor dem Start verändern.</p></section>`;
+     const cfg=current.isHost?lobbyEditor():`<section class="lobby-config lobby-readonly"><span class="lobby-overline">⚙️ AKTUELLE SPIELEINSTELLUNGEN</span><div class="lobby-mode-readonly"><span>${modeIcons[current.mode]}</span><strong>${escape(current.modeLabel)}</strong></div><div class="lobby-readonly-list">${current.mode==='food'?`<span>🍽️ Gericht <b>${escape(chosenFoodLabel())}</b></span>`:''}<span>🪙 Budget pro Spieler <b>${current.budget} €</b></span><span>⚒️ Auktionsart <b>${auctionName()}</b></span><span>⏱️ Zeitlimit <b>${current.timeLimit?`${current.timeLimit} Sekunden`:'Ohne Zeitlimit'}</b></span>${current.mode==='football'?`<span>⚽ Variante <b>${isShort()?`Bid Your Player · ${limit()} Spieler`:'Startelf · 4-3-3'}</b></span>`:''}</div><p class="muted">Der Host kann die Einstellungen vor dem Start verändern.</p></section>`;
      const start=current.isHost?`<button class="btn btn-primary lobby-stage-start" type="button" data-start ${full?'':'disabled'}>${full?'▷ &nbsp; Spiel starten　→':'⏳ Warte auf Mitspieler …'}</button>`:`<div class="lobby-stage-start lobby-start-waiting">⏳ Der Host startet das Spiel, sobald ihr bereit seid.</div>`;
      return `<div class="lobby-stage game-shell">
        <div class="lobby-stage-heading"><div class="lobby-stage-intro"><span class="lobby-overline">♟ SPIELRAUM</span><h1>Bereit für das Duell?</h1><p>Lade deinen Freund ein, wähle eure Einstellungen und startet gemeinsam euer BidBattle!</p></div><div class="lobby-code-area"><div class="lobby-stage-code"><span>DEIN RAUMCODE</span><strong>${escape(current.code)}</strong><button type="button" data-copy="code" aria-label="Raumcode kopieren" title="Raumcode kopieren">▢</button></div><p>Teile den Code mit deinem Freund, damit er beitreten kann.</p></div></div>
@@ -228,6 +234,7 @@
      const mode=$('#lobbyMode'),variant=$('#lobbyVariant'),budget=$('#lobbyBudget');if(!mode||!variant||!budget)return;
      const football=mode.value==='football',short=football&&variant.value==='byp';
      $('#lobbyVariantWrap').classList.toggle('hidden',!football);$('#lobbyLimitWrap').classList.toggle('hidden',!short);
+     $('#lobbyFoodFields')?.classList.toggle('hidden',mode.value!=='food');
      const options=budgetList(mode.value,variant.value),old=Number(budget.value);
      budget.innerHTML=dropdownOptions(options,options.some(([n])=>n===old)?old:(football&&!short?50:20));
    }
@@ -259,7 +266,8 @@
    function reveal(){
      const r=current.lastResult;
      let title,desc,icon;
-     if(r.reason==='double-tie') {icon='🤝';title='Auch das Stechen ist unentschieden!';desc='Niemand zahlt.';}
+     if(r.reason==='food-foundation-free') {icon='🍽️';title=`${escape(r.winnerName)} erhält eine Grundlage!`;desc='Die Basis wurde kostenlos ergänzt, damit beide ihr Gericht beginnen können.';}
+     else if(r.reason==='double-tie') {icon='🤝';title='Auch das Stechen ist unentschieden!';desc='Niemand zahlt.';}
      else if(r.reason==='passed') {icon='⏭️';title='Niemand wollte das Item';desc='Niemand zahlt.';}
      else {icon='🏆';title=`${escape(r.winnerName)} gewinnt die Auktion!`;desc=`Gewonnen für ${r.winningBid} € Spielgeld.`;}
      const details=current.auctionType==='sealed'
@@ -271,11 +279,13 @@
    function sliderBidControls(){
      const player=me();
      if(current.paused)return `<div class="bid-locked">📡 Auktion pausiert – wir warten auf die Verbindung deines Mitspielers.</div>`;
+     if(current.foodFoundationPhase && !current.foodCanBid)return `<div class="bid-locked">✅ Du hast bereits eine Grundlage!<p class="muted" style="margin:6px 0 0">Diese Grundlage gehört deinem Mitspieler. Sobald beide versorgt sind, kommen die weiteren Zutaten.</p></div>`;
      if(current.auctionType==='sealed' && player.hasBid)return `<div class="bid-locked">🔒 Gebot gespeichert. Warte auf deinen Mitspieler …</div>`;
      if(current.auctionType==='open'){
        const bid=current.open;
        if(bid?.turnId!==player.id)return openBidControls();
        const min=(bid?.currentBid||0)+1;
+       if(current.foodFoundationPhase && !current.foodCanBid)return `<div class="bid-locked">✅ Deine Grundlage ist gesichert. Jetzt ist dein Mitspieler dran.</div>`;
        if(min>player.budget)return openBidControls();
        if(current.mode==='football'&&!current.footballCanBuy?.[player.id])return openBidControls();
        return `<div class="bb-open-bid-leader">Aktuelles Gebot: <b>${bid.currentBid} €</b> · Mindestens ${min} €</div>${bidFormWithSlider(min,player.budget,'Jetzt überbieten','open')}`;
@@ -297,7 +307,7 @@
    }
    function flowSceneHeader(){
      const suffix=current.status==='countdown'?'Startet gleich':`Auktion ${current.round+1} / ${current.total}`;
-     return `<div class="bb-flow-top"><div class="bb-flow-mode">${modeIcons[current.mode]} <strong>${escape(current.modeLabel)}</strong><span class="bb-flow-separator" aria-hidden="true"></span><span>${suffix}</span></div><div class="bb-flow-meta"><span>${auctionName()}</span><span>${current.timeLimit?`${current.timeLimit} Sek. pro Gebot`:'Ohne Zeitlimit'}</span><span>Raum ${escape(current.code)}</span></div></div>`;
+     return `<div class="bb-flow-top"><div class="bb-flow-mode">${current.mode==='food'?foodDishes[current.foodDish]?.[1]||'🍔':modeIcons[current.mode]} <strong>${escape(current.modeLabel)}${current.mode==='food'?` · ${escape(chosenFoodLabel())}`:''}</strong><span class="bb-flow-separator" aria-hidden="true"></span><span>${suffix}</span></div><div class="bb-flow-meta"><span>${auctionName()}</span><span>${current.timeLimit?`${current.timeLimit} Sek. pro Gebot`:'Ohne Zeitlimit'}</span><span>Raum ${escape(current.code)}</span></div></div>`;
    }
    function flowPreviousButton(){
      const previous=finishedAuctions.get(`${current.code}:${current.round-1}`);
@@ -307,8 +317,9 @@
      const color=current.mode==='food'?'food':current.mode==='hero'?'hero':'random';
      const card=current.card;
      const results=current.status==='reveal'?reveal():sliderBidControls();
-     const timer=current.deadline?`<div class="bb-flow-timer" aria-live="off">⏱ <span id="countdown">…</span></div>`:'';
-     return `<div class="game-shell bb-flow-shell bb-mode-${color}">${flowSceneHeader()}<div class="bb-flow-roundline"><div class="bb-flow-track"><div style="width:${((current.round+1)/current.total)*100}%"></div></div><span>${current.round+1} von ${current.total} Angeboten</span>${timer}</div>
+     const phase=current.mode==='food'?(current.foodFoundationPhase?`<div class="bb-food-stage" role="status">🍽️ <strong>Schritt 1: Grundlage sichern</strong><span>${current.round+1} von 2 · Jeder Spieler bekommt zuerst eine Basis. Danach kommen die weiteren Zutaten.</span></div>`:`<div class="bb-food-stage bb-food-stage-next">🧑‍🍳 <strong>Schritt 2: Gericht zusammenstellen</strong><span>${escape(card.type)} · Die Grundlagen sind bei beiden Spielern gesichert.</span></div>`):'';
+     const timer=current.deadline?`<div class="bb-flow-timer aria-live="off">⏱ <span id="countdown">…</span></div>`:'';
+     return `<div class="game-shell bb-flow-shell bb-mode-${color}">${flowSceneHeader()}${phase}<div class="bb-flow-roundline"><div class="bb-flow-track"><div style="width:${((current.round+1)/current.total)*100}%"></div></div><span>${current.round+1} von ${current.total} Angeboten</span>${timer}</div>
       <div class="bb-flow-grid">${flowPlayerPanel(players()[0],0)}<div class="bb-flow-center"><section class="bb-item-card"><div class="bb-item-art ${color}">${flowPreviousButton()}<span class="bb-item-category">${escape(card.type)} · ${current.status==='reveal'?'ERGEBNIS':current.status==='tiebreak'?'STECHEN':'JETZT BIETEN'}</span><span class="bb-item-emoji" aria-hidden="true">${escape(card.emoji)}</span><span class="bb-item-art-label" aria-hidden="true">BIDBATTLE</span></div><div class="bb-item-copy"><h2>${escape(card.title)}</h2><p>${escape(card.detail)}</p></div></section><section class="bb-bid-card">${results}</section></div>${flowPlayerPanel(players()[1],1)}</div></div>`;
    }
    function footballPlayerPanel(player,index){
@@ -566,16 +577,18 @@
     $('#footballVariantFields').classList.toggle('hidden',!football);
     $('#playerLimitFields').classList.toggle('hidden',!short);
     $('#footballModeHint').classList.toggle('hidden',!football);
+    $('#foodDishFields').classList.toggle('hidden',$('#createMode').value!=='food');
   }
   $('#createMode').addEventListener('change',()=>{updateBudgetOptions();updateOnboardMode();});
   $('#bbCreateContinue').addEventListener('click',()=>{const field=$('#createName');if(!field.reportValidity())return;setCreateStep(2);});
   $('#bbCreateBack').addEventListener('click',()=>setCreateStep(1));
   $('#createName').addEventListener('input',renderOnboardingPreview);
   $('#createFootballVariant').addEventListener('change',updateBudgetOptions);
+  $('#createFoodChoice').addEventListener('change',updateOnboardMode);
   updateBudgetOptions();
   $('#createForm').addEventListener('submit',async e=>{
     e.preventDefault();const name=$('#createName').value.trim();if(!name)return;const button=$('#createSubmit');button.disabled=true;button.textContent='Wird erstellt …';
-    try{await syncRegisteredProfile(name);const response=await request('/api/rooms','POST',{name,mode:$('#createMode').value,footballVariant:$('#createMode').value==='football'?$('#createFootballVariant').value:null,playerLimit:Number($('#createPlayerLimit').value),budget:Number($('#createBudget').value),timeLimit:Number($('#createTimeLimit').value),auctionType:$('#createForm input[name=auctionType]:checked').value,avatar:chosenAvatar,avatarColor:chosenColor});persistName(name);await enter(response);}catch(err){notify(err.message);}finally{button.disabled=false;button.textContent='Spiel erstellen →';}
+    try{await syncRegisteredProfile(name);const response=await request('/api/rooms','POST',{name,mode:$('#createMode').value,footballVariant:$('#createMode').value==='football'?$('#createFootballVariant').value:null,playerLimit:Number($('#createPlayerLimit').value),budget:Number($('#createBudget').value),timeLimit:Number($('#createTimeLimit').value),auctionType:$('#createForm input[name=auctionType]:checked').value,foodChoice:$('#createMode').value==='food'?$('#createFoodChoice').value:null,avatar:chosenAvatar,avatarColor:chosenColor});persistName(name);await enter(response);}catch(err){notify(err.message);}finally{button.disabled=false;button.textContent='Spiel erstellen →';}
   });
   $('#joinCode').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);});
   $('#joinForm').addEventListener('submit',async e=>{
@@ -618,7 +631,7 @@
   });
   $('#gameContent').addEventListener('submit',e=>{
     if(e.target.id==='lobbySettings'){
-      e.preventDefault();return postAction('settings',{mode:$('#lobbyMode').value,footballVariant:$('#lobbyVariant').value,playerLimit:Number($('#lobbyLimit').value),budget:Number($('#lobbyBudget').value),auctionType:$('#lobbyAuction').value,timeLimit:Number($('#lobbyTime').value)});
+      e.preventDefault();return postAction('settings',{mode:$('#lobbyMode').value,footballVariant:$('#lobbyVariant').value,playerLimit:Number($('#lobbyLimit').value),budget:Number($('#lobbyBudget').value),auctionType:$('#lobbyAuction').value,timeLimit:Number($('#lobbyTime').value),foodChoice:$('#lobbyMode').value==='food'?$('#lobbyFoodChoice').value:null});
     }
     if(e.target.id!=='bidForm')return;e.preventDefault();const n=Number($('#bidAmount').value);const min=current.auctionType==='open'?current.open.currentBid+1:0;if(!Number.isSafeInteger(n)||n<min||n>me().budget){notify(`Bitte einen ganzen Betrag von ${min} bis ${me().budget} € eingeben.`);return;}postAction('bid',{amount:n});});
 

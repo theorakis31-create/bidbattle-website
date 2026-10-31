@@ -1,11 +1,11 @@
 {
   "name": "bidbattle",
-  "version": "1.8.0-preview.2",
+  "version": "1.8.2-food-chronology",
   "private": true,
   "description": "BidBattle – Multiplayer-Auktionswebsite mit Football Startelf, Bid Your Player und weiteren Spielmodi",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/smoke.cjs && node tests/variants.cjs && node tests/features16.cjs && node tests/features161.cjs && node tests/features17.cjs && node tests/features171.cjs && node tests/homepage173.cjs && node tests/homepage174.cjs && node tests/layout175.cjs && node tests/layout176.cjs && node tests/layout177.cjs && node tests/layout179.cjs && node tests/layout1791.cjs && node tests/layout180.cjs && node tests/layout181.cjs",
+    "test": "node tests/smoke.cjs && node tests/variants.cjs && node tests/features16.cjs && node tests/features161.cjs && node tests/features17.cjs && node tests/features171.cjs && node tests/homepage173.cjs && node tests/homepage174.cjs && node tests/layout175.cjs && node tests/layout176.cjs && node tests/layout177.cjs && node tests/layout179.cjs && node tests/layout1791.cjs && node tests/layout180.cjs && node tests/layout181.cjs && node tests/foodcreator.cjs && node tests/foodchronology.cjs",
     "test:homepage": "node tests/homepage173.cjs && node tests/homepage174.cjs"
   },
   "engines": {

@@ -18,7 +18,8 @@ async function run(){
   assert.equal((await act(a,'bid',{amount:10})).status,'bidding');
   r=await act(b,'bid',{amount:0});assert.equal(r.status,'reveal');assert.deepEqual(r.players.map(x=>x.budget),[0,10]);
   r=await until(a,x=>x.round===1&&x.status==='bidding');
-  assert.equal((await act(a,'bid',{amount:0})).status,'bidding');
+  assert.equal((await act(a,'bid',{amount:0})).http,409,'Erster Spieler hat bereits die Grundlage und passt automatisch');
+  assert.equal(r.players[0].hasBid,true);
   r=await act(b,'bid',{amount:10});assert.equal(r.status,'reveal');assert.deepEqual(r.players.map(x=>x.budget),[0,0]);
   r=await until(a,x=>x.status==='voting');assert.equal(r.round,2);assert.deepEqual(r.players.map(x=>x.budget),[0,0]);
   console.log('PASS: both budgets at 0 -> immediately voting after reveal');
